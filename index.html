@@ -1,0 +1,1389 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>Hex Map (Desert & Grass + Bases + Firebase)</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      height: 100%;
+      overflow: hidden;
+      background: #050608;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: #f5f5f5;
+    }
+    #map-canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      background: radial-gradient(circle at top, #1d2838 0, #050608 50%);
+      cursor: grab;
+    }
+    #map-canvas.dragging { cursor: grabbing; }
+
+    .hud {
+      position: fixed;
+      right: 10px;
+      bottom: 10px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(0, 0, 0, .65);
+      backdrop-filter: blur(10px);
+      font-size: 11px;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      pointer-events: none;
+      z-index: 10;
+    }
+    .hud span.label { opacity: .6; }
+    .hud span.value { font-variant-numeric: tabular-nums; }
+
+    .hint {
+      position: fixed;
+      left: 10px;
+      bottom: 10px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(0, 0, 0, .65);
+      backdrop-filter: blur(10px);
+      font-size: 11px;
+      opacity: .8;
+      pointer-events: none;
+      z-index: 10;
+      max-width: 520px;
+    }
+
+    /* サイドバー（基地リスト） */
+    .sidebar {
+      position: fixed;
+      left: 10px;
+      top: 10px;
+      width: 270px;
+      padding: 10px;
+      border-radius: 16px;
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(14px);
+      font-size: 12px;
+      z-index: 20;
+      pointer-events: auto;
+      max-height: calc(100% - 20px);
+      display: flex;
+      flex-direction: column;
+      transition: transform 0.2s ease, opacity 0.2s ease;
+    }
+    .sidebar.collapsed {
+      transform: translateY(-8px) translateX(-5px);
+      opacity: 0.2;
+    }
+    .sidebar-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      margin-bottom: 6px;
+    }
+    .sidebar-title {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      opacity: 0.75;
+    }
+    .sidebar-actions {
+      display: flex;
+      gap: 4px;
+      flex-shrink: 0;
+      align-items: center;
+    }
+    .sidebar-actions button {
+      border: none;
+      border-radius: 999px;
+      padding: 2px 6px;
+      font-size: 10px;
+      cursor: pointer;
+      background: rgba(255,255,255,0.1);
+      color: #f5f5f5;
+      white-space: nowrap;
+    }
+    .sidebar-actions button:hover {
+      background: rgba(255,255,255,0.2);
+    }
+    .sidebar-toggle {
+      border-radius: 999px;
+      padding: 2px 6px;
+      font-size: 10px;
+      cursor: pointer;
+      background: rgba(255,255,255,0.12);
+      color: #f5f5f5;
+      border: none;
+    }
+
+    #base-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      overflow-y: auto;
+      flex: 1;
+    }
+    .sidebar-note {
+      margin-top: 6px;
+      font-size: 10px;
+      opacity: 0.7;
+    }
+
+    #base-list li.base-item {
+      display: flex;
+      gap: 6px;
+      padding: 5px 6px;
+      border-radius: 10px;
+      background: rgba(255,255,255,0.04);
+      margin-bottom: 4px;
+      border: 1px solid transparent;
+      align-items: center;
+    }
+    #base-list li.base-item:hover {
+      background: rgba(255,255,255,0.08);
+    }
+
+    .base-item-thumb {
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      background-color: rgba(255,255,255,0.06);
+      background-size: cover;
+      background-position: center;
+      flex-shrink: 0;
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+
+    .base-item-info {
+      flex: 1;
+      min-width: 0;
+    }
+    .base-item-name-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 4px;
+    }
+    .base-name {
+      font-size: 12px;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .base-level {
+      font-size: 11px;
+      opacity: 0.85;
+    }
+    .base-item-meta-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 2px;
+      gap: 4px;
+    }
+    .base-coord {
+      font-size: 10px;
+      opacity: 0.7;
+    }
+    .base-status {
+      display: flex;
+      gap: 2px;
+    }
+    .base-status button {
+      border: none;
+      border-radius: 999px;
+      padding: 1px 5px;
+      font-size: 10px;
+      cursor: pointer;
+      background: rgba(255,255,255,0.06);
+      color: #f5f5f5;
+      white-space: nowrap;
+    }
+    .base-status button.active[data-status="参加"] {
+      background: rgba(80, 220, 140, 0.9);
+      color: #021108;
+    }
+    .base-status button.active[data-status="不参加"] {
+      background: rgba(240, 90, 90, 0.9);
+      color: #250202;
+    }
+    .base-status button.active[data-status="不明"] {
+      background: rgba(255, 210, 90, 0.9);
+      color: #251a02;
+    }
+
+    @media (max-width: 768px) {
+      .hint {
+        font-size: 10px;
+        max-width: 90%;
+      }
+      .sidebar {
+        width: calc(100% - 20px);
+        left: 10px;
+        right: 10px;
+        top: 10px;
+        max-height: 45%;
+      }
+      .sidebar-title {
+        font-size: 10px;
+      }
+      .sidebar-actions button {
+        font-size: 9px;
+        padding: 2px 4px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="map-canvas"></canvas>
+
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-title">基地一覧（リスト行ダブルクリックで編集）</div>
+      <div class="sidebar-actions">
+        <button id="export-btn">エクスポート</button>
+        <button id="import-btn">インポート</button>
+        <button class="sidebar-toggle" id="sidebar-toggle">▲</button>
+        <input type="file" id="import-file" accept="application/json" style="display:none" />
+      </div>
+    </div>
+    <ul id="base-list"></ul>
+    <div class="sidebar-note" id="sidebar-note">
+      ・PC：空きマスをダブルクリックで基地追加 / 基地ドラッグで移動 / 基地ダブルクリックで名前変更 or 削除<br>
+      ・スマホ：基地追加は空きマスを<strong>長押し</strong>、ドラッグで移動（1本指）<br>
+      ・状態・レベル・サムネはブラウザに自動保存（localStorage）<br>
+      ・エクスポートで JSON をダウンロード、インポートで読み込み
+    </div>
+  </div>
+
+  <div class="hud">
+    <span class="label">Zoom</span>
+    <span class="value" id="zoom-display">100%</span>
+    <span class="label">Cell</span>
+    <span class="value" id="cell-display">—</span>
+  </div>
+
+  <div class="hint" id="hint">
+    🖱 PC：ドラッグで移動 / ホイールでズーム / クリックで X,Y 選択 / 空きマスをダブルクリックで基地追加 / 基地マスをダブルクリックで名前変更 or 削除 / 基地ドラッグで移動<br>
+    📱 スマホ：1本指ドラッグで移動 / ピンチでズーム / 空きマスを<strong>長押し</strong>で基地追加 / 基地をドラッグで移動<br>
+    （砂漠エリア・芝生エリア / 固定オブジェクト名 / 基地ラベルの上下に座標と参加状態を表示）
+  </div>
+
+  <script type="module">
+    // ===== Firebase SDK 初期化 =====
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
+    import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-analytics.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyB_whPaNOu9Lw7i7-j14UgjFtwExB8aQvk",
+      authDomain: "hex-map-project.firebaseapp.com",
+      projectId: "hex-map-project",
+      storageBucket: "hex-map-project.firebasestorage.app",
+      messagingSenderId: "278586802948",
+      appId: "1:278586802948:web:31e51f369382bb859d0651",
+      measurementId: "G-NMY20PTQKM"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const analytics = getAnalytics(app);
+
+    // ===== ここから元のアプリコード =====
+    const canvas = document.getElementById("map-canvas");
+    const ctx = canvas.getContext("2d");
+    const zoomDisplay = document.getElementById("zoom-display");
+    const cellDisplay = document.getElementById("cell-display");
+    const baseListEl = document.getElementById("base-list");
+    const exportBtn = document.getElementById("export-btn");
+    const importBtn = document.getElementById("import-btn");
+    const importFileInput = document.getElementById("import-file");
+    const sidebar = document.getElementById("sidebar");
+    const sidebarToggle = document.getElementById("sidebar-toggle");
+
+    // ===== 基本設定 =====
+    const HEX_SIZE = 20;
+    const GRID_MAX_X = 999;
+    const GRID_MAX_Y = 999;
+
+    const HEX_HEIGHT = 2 * HEX_SIZE;
+    const HEX_WIDTH  = Math.sqrt(3) * HEX_SIZE;
+    const HEX_VERT_SPACING  = 1.5 * HEX_SIZE;
+    const HEX_HORIZ_SPACING = HEX_WIDTH;
+
+    const EDGE_THICKNESS_WORLD = HEX_SIZE * 0.8;
+    const STORAGE_KEY = "hexmap_bases_v5";
+
+    let scale = 0.35;
+    let offsetX = 0;
+    let offsetY = 0;
+    const MIN_SCALE = 0.08;
+    const MAX_SCALE = 3.0;
+
+    let isPanning = false;
+    let lastMouseX = 0;
+    let lastMouseY = 0;
+    let selectedCell = null;
+
+    // 基地ドラッグ用
+    let draggingBaseId = null;
+    let lastDragCell = null;
+
+    // 長押し（スマホ）で基地追加用
+    let touchHoldTimer = null;
+    let touchHoldCell = null;
+    const TOUCH_HOLD_MS = 600;
+
+    // 基地一覧 {id, name, cells:[{x,y}], anchor:{x,y}, level, status, thumb}
+    const bases = [];
+    let baseCount = 0;
+
+    // ★ 首都中心と表示半径（首都±50マス）
+    const CAPITAL_CENTER_X = 500;
+    const CAPITAL_CENTER_Y = 500;
+    const VIEW_RADIUS = 50;
+
+    const VIEW_MIN_X = Math.max(0, CAPITAL_CENTER_X - VIEW_RADIUS);
+    const VIEW_MAX_X = Math.min(GRID_MAX_X, CAPITAL_CENTER_X + VIEW_RADIUS);
+    const VIEW_MIN_Y = Math.max(0, CAPITAL_CENTER_Y - VIEW_RADIUS);
+    const VIEW_MAX_Y = Math.min(GRID_MAX_Y, CAPITAL_CENTER_Y + VIEW_RADIUS);
+
+    // ===== 砂漠エリア（元・首都エリアの多角形）=====
+    const desertVerticesGrid = [
+      { x: 482, y: 465 },
+      { x: 465, y: 500 },
+      { x: 482, y: 535 },
+      { x: 517, y: 535 },
+      { x: 535, y: 500 },
+      { x: 517, y: 465 }
+    ];
+
+    // ===== 配置不可（赤）メイン六角 =====
+    const blockedVerticesGrid = [
+      { x: 483, y: 500 },
+      { x: 491, y: 517 },
+      { x: 508, y: 517 },
+      { x: 517, y: 500 },
+      { x: 508, y: 483 },
+      { x: 491, y: 483 }
+    ];
+
+    // ★ 追加の単体配置不可セル（赤）
+    const extraBlockedCells = [
+      { x: 489, y: 515 },
+      { x: 490, y: 516 },
+      { x: 490, y: 517 },
+      { x: 491, y: 518 },
+      { x: 491, y: 585 },
+      { x: 492, y: 518 },
+      { x: 493, y: 518 },
+      { x: 494, y: 518 },
+      { x: 489, y: 516 },
+      { x: 489, y: 517 },
+      { x: 490, y: 518 },
+      { x: 490, y: 519 },
+      { x: 491, y: 519 },
+      { x: 492, y: 519 },
+      { x: 493, y: 519 },
+      { x: 517, y: 502 },
+      { x: 517, y: 501 },
+      { x: 517, y: 502 },
+      { x: 518, y: 500 },
+      { x: 518, y: 499 },
+      { x: 518, y: 498 },
+      { x: 517, y: 497 },
+      { x: 517, y: 496 },
+      { x: 517, y: 499 },
+      { x: 517, y: 498 },
+      { x: 516, y: 497 },
+      { x: 516, y: 496 },
+      { x: 489, y: 485 },
+      { x: 489, y: 484 },
+      { x: 489, y: 483 },
+      { x: 490, y: 482 },
+      { x: 490, y: 484 },
+      { x: 490, y: 483 },
+      { x: 491, y: 482 },
+      { x: 491, y: 481 },
+      { x: 492, y: 482 },
+      { x: 492, y: 481 },
+      { x: 493, y: 482 },
+      { x: 494, y: 482 },
+      { x: 490, y: 481 },
+      { x: 493, y: 481 },
+      { x: 494, y: 482 }
+    ];
+
+    let desertPolygonWorld = [];
+    let blockedPolygonWorld = [];
+
+    // ===== 基地の形（axial座標で半径1クラスター＝7マス）=====
+    const basePatternAxial = [
+      { dq: 0, dr: 0 },   // 中央
+      { dq: 1, dr: 0 },
+      { dq: 0, dr: 1 },
+      { dq: -1, dr: 1 },
+      { dq: -1, dr: 0 },
+      { dq: 0, dr: -1 },
+      { dq: 1, dr: -1 }
+    ];
+
+    // odd-r <-> axial 変換
+    function oddrToAxial(col, row) {
+      const q = col - (row - (row & 1)) / 2;
+      const r = row;
+      return { q, r };
+    }
+    function axialToOddr(q, r) {
+      const row = r;
+      const col = q + (r - (r & 1)) / 2;
+      return { x: col, y: row };
+    }
+
+    function resizeCanvas() {
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width;
+      canvas.height = rect.height;
+
+      if (!resizeCanvas.initialized) {
+        resizeCanvas.initialized = true;
+
+        const midX = CAPITAL_CENTER_X;
+        const midY = CAPITAL_CENTER_Y;
+        const midWorld = gridToWorld(midX, midY);
+        offsetX = canvas.width / 2 - midWorld.x * scale;
+        offsetY = canvas.height / 2 - midWorld.y * scale;
+
+        desertPolygonWorld = desertVerticesGrid.map(v => gridToWorld(v.x, v.y));
+        blockedPolygonWorld = blockedVerticesGrid.map(v => gridToWorld(v.x, v.y));
+
+        loadBases();
+        updateBaseListUI();
+      }
+      draw();
+    }
+    window.addEventListener("resize", resizeCanvas);
+    resizeCanvas();
+
+    // ===== 座標変換 =====
+    function gridToWorld(gx, gy) {
+      const wx = HEX_HORIZ_SPACING * (gx + (gy & 1) * 0.5);
+      const wy = HEX_VERT_SPACING * gy;
+      return { x: wx, y: wy };
+    }
+
+    function worldToScreen(wx, wy) {
+      return { x: wx * scale + offsetX, y: wy * scale + offsetY };
+    }
+
+    function screenToWorld(sx, sy) {
+      return { x: (sx - offsetX) / scale, y: (sy - offsetY) / scale };
+    }
+
+    function screenToGrid(sx, sy) {
+      const w = screenToWorld(sx, sy);
+      let gy = Math.round(w.y / HEX_VERT_SPACING);
+      gy = Math.max(0, Math.min(GRID_MAX_Y, gy));
+      const rowOffset = (gy & 1) ? HEX_HORIZ_SPACING * 0.5 : 0;
+      let gx = Math.round((w.x - rowOffset) / HEX_HORIZ_SPACING);
+      gx = Math.max(0, Math.min(GRID_MAX_X, gx));
+      return { x: gx, y: gy };
+    }
+
+    // ===== 幾何ユーティリティ =====
+    function pointInPolygon(point, polygon) {
+      let inside = false;
+      for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+        const xi = polygon[i].x, yi = polygon[i].y;
+        const xj = polygon[j].x, yj = polygon[j].y;
+        const intersect =
+          ((yi > point.y) !== (yj > point.y)) &&
+          (point.x < (xj - xi) * (point.y - yi) / (yj - yi + 1e-9) + xi);
+        if (intersect) inside = !inside;
+      }
+      return inside;
+    }
+
+    function pointToSegmentDistance(p, a, b) {
+      const vx = b.x - a.x;
+      const vy = b.y - a.y;
+      const wx = p.x - a.x;
+      const wy = p.y - a.y;
+      const c1 = vx * wx + vy * wy;
+      if (c1 <= 0) return Math.hypot(p.x - a.x, p.y - a.y);
+      const c2 = vx * vx + vy * vy;
+      if (c2 <= c1) return Math.hypot(p.x - b.x, p.y - b.y);
+      const t = c1 / c2;
+      const projx = a.x + t * vx;
+      const projy = a.y + t * vy;
+      return Math.hypot(p.x - projx, p.y - projy);
+    }
+
+    function distanceToPolygonEdges(p, polygon) {
+      let minD = Infinity;
+      for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+        const a = polygon[j];
+        const b = polygon[i];
+        const d = pointToSegmentDistance(p, a, b);
+        if (d < minD) minD = d;
+      }
+      return minD;
+    }
+
+    // 配置不可セルかどうか
+    function isBlockedCell(gx, gy) {
+      for (const c of extraBlockedCells) {
+        if (c.x === gx && c.y === gy) return true;
+      }
+      const w = gridToWorld(gx, gy);
+      const inside = pointInPolygon(w, blockedPolygonWorld);
+      const dist = distanceToPolygonEdges(w, blockedPolygonWorld);
+      return inside || dist <= EDGE_THICKNESS_WORLD;
+    }
+
+    // ===== 基地関連ユーティリティ =====
+    function findBaseAtCell(gx, gy) {
+      return bases.find(b => b.cells.some(c => c.x === gx && c.y === gy)) || null;
+    }
+
+    function createBaseCellsForAnchor(gx, gy, ignoreBaseId = null) {
+      const { q, r } = oddrToAxial(gx, gy);
+      const cells = basePatternAxial.map(off => {
+        const oq = q + off.dq;
+        const or = r + off.dr;
+        return axialToOddr(oq, or);
+      });
+
+      for (const c of cells) {
+        if (c.x < 0 || c.x > GRID_MAX_X || c.y < 0 || c.y > GRID_MAX_Y) {
+          return null;
+        }
+        if (isBlockedCell(c.x, c.y)) {
+          return null;
+        }
+        for (const b of bases) {
+          if (ignoreBaseId && b.id === ignoreBaseId) continue;
+          if (b.cells.some(d => d.x === c.x && d.y === c.y)) {
+            return null;
+          }
+        }
+      }
+      return cells;
+    }
+
+    function deleteBaseById(id) {
+      const idx = bases.findIndex(b => b.id === id);
+      if (idx !== -1) {
+        bases.splice(idx, 1);
+        saveBases();
+        updateBaseListUI();
+        draw();
+      }
+    }
+
+    // ===== 保存・読み込み・インポート／エクスポート =====
+    function makeSerializableData() {
+      return {
+        bases: bases.map(b => ({
+          id: b.id,
+          name: b.name,
+          anchor: b.anchor,
+          level: b.level ?? null,
+          status: b.status || "不明",
+          thumb: b.thumb || null
+        }))
+      };
+    }
+
+    function saveBases() {
+      const data = makeSerializableData();
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      } catch (e) {
+        console.warn("saveBases error:", e);
+      }
+    }
+
+    function loadBases() {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      try {
+        const data = JSON.parse(raw);
+        if (!data || !Array.isArray(data.bases)) return;
+        data.bases.forEach(rec => {
+          if (!rec.anchor) return;
+          const anchor = rec.anchor;
+          const cells = createBaseCellsForAnchor(anchor.x, anchor.y, null);
+          if (!cells) return;
+          bases.push({
+            id: rec.id || (Date.now().toString(36) + Math.random().toString(36).slice(2,7)),
+            name: rec.name || "基地",
+            cells,
+            anchor,
+            level: rec.level ?? null,
+            status: rec.status || "不明",
+            thumb: rec.thumb || null
+          });
+        });
+        baseCount = bases.length;
+      } catch (e) {
+        console.warn("loadBases error:", e);
+      }
+    }
+
+    function importBasesFromData(data) {
+      if (!data || !Array.isArray(data.bases)) {
+        alert("インポートするJSONの形式が不正です。");
+        return;
+      }
+      if (!confirm("現在の基地データを全て置き換えますか？")) return;
+
+      bases.length = 0;
+      data.bases.forEach(rec => {
+        if (!rec.anchor) return;
+        const anchor = rec.anchor;
+        const cells = createBaseCellsForAnchor(anchor.x, anchor.y, null);
+        if (!cells) return;
+        bases.push({
+          id: rec.id || (Date.now().toString(36) + Math.random().toString(36).slice(2,7)),
+          name: rec.name || "基地",
+          cells,
+          anchor,
+          level: rec.level ?? null,
+          status: rec.status || "不明",
+          thumb: rec.thumb || null
+        });
+      });
+      baseCount = bases.length;
+      saveBases();
+      updateBaseListUI();
+      draw();
+    }
+
+    function exportBasesToFile() {
+      const data = makeSerializableData();
+      const json = JSON.stringify(data, null, 2);
+      const blob = new Blob([json], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "bases.json";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    function handleImportFile(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        try {
+          const data = JSON.parse(ev.target.result);
+          importBasesFromData(data);
+        } catch (err) {
+          console.error(err);
+          alert("JSONの読み込みに失敗しました。");
+        } finally {
+          importFileInput.value = "";
+        }
+      };
+      reader.readAsText(file, "utf-8");
+    }
+
+    exportBtn.addEventListener("click", () => {
+      exportBasesToFile();
+    });
+
+    importBtn.addEventListener("click", () => {
+      importFileInput.click();
+    });
+
+    importFileInput.addEventListener("change", handleImportFile);
+
+    // ★ 基地メタ編集（リストのダブルクリック）
+    function editBaseMeta(base) {
+      if (!base) return;
+      let newName = prompt("基地名（空欄で変更なし）", base.name);
+      if (newName !== null && newName.trim() !== "") {
+        base.name = newName.trim();
+      }
+
+      let newLevel = prompt(
+        "基地レベル（数字 / 空欄で変更なし）",
+        base.level != null ? String(base.level) : ""
+      );
+      if (newLevel !== null && newLevel.trim() !== "") {
+        const num = Number(newLevel.trim());
+        if (!isNaN(num)) {
+          base.level = num;
+        }
+      }
+
+      let newThumb = prompt(
+        "サムネイル画像URL（空欄で削除 / 変更なしならキャンセル）",
+        base.thumb || ""
+      );
+      if (newThumb !== null) {
+        newThumb = newThumb.trim();
+        base.thumb = newThumb === "" ? null : newThumb;
+      }
+
+      saveBases();
+      updateBaseListUI();
+      draw();
+    }
+
+    // ★ 基地名変更／削除（マップでダブルクリック）
+    function renameOrDeleteBase(base) {
+      if (!base) return;
+      let newName = prompt(
+        "基地名を変更してください（空欄で削除、キャンセルで何もしない）",
+        base.name
+      );
+      if (newName === null) return; // キャンセル
+
+      newName = newName.trim();
+      if (newName === "") {
+        if (confirm(`基地「${base.name}」を削除しますか？`)) {
+          deleteBaseById(base.id);
+        }
+        return;
+      }
+
+      base.name = newName;
+      saveBases();
+      updateBaseListUI();
+      draw();
+    }
+
+    function addBaseAtGrid(gx, gy) {
+      const cells = createBaseCellsForAnchor(gx, gy, null);
+      if (!cells) return;
+
+      const defaultName = "基地" + String(++baseCount).padStart(3, "0");
+      let name = prompt(
+        "基地名を入力してください（キャンセルで配置中止）",
+        defaultName
+      );
+      if (name === null) {
+        baseCount--;
+        return;
+      }
+      if (name.trim() === "") name = defaultName;
+
+      const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+      bases.push({
+        id,
+        name,
+        cells,
+        anchor: { x: gx, y: gy },
+        level: null,
+        status: "不明",
+        thumb: null
+      });
+      saveBases();
+      updateBaseListUI();
+      draw();
+    }
+
+    function moveBaseToGrid(baseId, gx, gy) {
+      const base = bases.find(b => b.id === baseId);
+      if (!base) return;
+
+      const cells = createBaseCellsForAnchor(gx, gy, baseId);
+      if (!cells) return;
+
+      base.cells = cells;
+      base.anchor = { x: gx, y: gy };
+      saveBases();
+      updateBaseListUI();
+      draw();
+    }
+
+    // ★ 基地リストUIの更新
+    function updateBaseListUI() {
+      baseListEl.innerHTML = "";
+      bases.forEach((b) => {
+        const li = document.createElement("li");
+        li.className = "base-item";
+
+        const thumbDiv = document.createElement("div");
+        thumbDiv.className = "base-item-thumb";
+        if (b.thumb) {
+          thumbDiv.style.backgroundImage = `url(${b.thumb})`;
+        }
+
+        const infoDiv = document.createElement("div");
+        infoDiv.className = "base-item-info";
+
+        const nameRow = document.createElement("div");
+        nameRow.className = "base-item-name-row";
+
+        const nameSpan = document.createElement("span");
+        nameSpan.className = "base-name";
+        nameSpan.textContent = b.name;
+
+        const levelSpan = document.createElement("span");
+        levelSpan.className = "base-level";
+        levelSpan.textContent = b.level != null ? `Lv.${b.level}` : "Lv.-";
+
+        nameRow.appendChild(nameSpan);
+        nameRow.appendChild(levelSpan);
+
+        const metaRow = document.createElement("div");
+        metaRow.className = "base-item-meta-row";
+
+        const anchor = b.anchor || b.cells[0];
+        const coordSpan = document.createElement("span");
+        coordSpan.className = "base-coord";
+        coordSpan.textContent = `X${anchor.x} Y${anchor.y}`;
+
+        const statusDiv = document.createElement("div");
+        statusDiv.className = "base-status";
+
+        ["参加", "不参加", "不明"].forEach(st => {
+          const btn = document.createElement("button");
+          btn.dataset.status = st;
+          btn.textContent = st;
+          if (b.status === st) {
+            btn.classList.add("active");
+          }
+          btn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            b.status = st;
+            saveBases();
+            updateBaseListUI();
+            draw();
+          });
+          statusDiv.appendChild(btn);
+        });
+
+        metaRow.appendChild(coordSpan);
+        metaRow.appendChild(statusDiv);
+
+        infoDiv.appendChild(nameRow);
+        infoDiv.appendChild(metaRow);
+
+        li.appendChild(thumbDiv);
+        li.appendChild(infoDiv);
+
+        li.addEventListener("dblclick", (e) => {
+          e.stopPropagation();
+          editBaseMeta(b);
+        });
+
+        baseListEl.appendChild(li);
+      });
+    }
+
+    // ===== 描画 =====
+    function drawHexCenter(wx, wy, strokeStyle, fillStyle, lineWidth = 1) {
+      const { x: sx, y: sy } = worldToScreen(wx, wy);
+      const s = HEX_SIZE * scale;
+      const w = Math.sqrt(3) * s;
+      const h = s;
+
+      const pts = [
+        { x: sx,        y: sy - h },
+        { x: sx + w/2,  y: sy - h/2 },
+        { x: sx + w/2,  y: sy + h/2 },
+        { x: sx,        y: sy + h },
+        { x: sx - w/2,  y: sy + h/2 },
+        { x: sx - w/2,  y: sy - h/2 }
+      ];
+
+      ctx.beginPath();
+      ctx.moveTo(pts[0].x, pts[0].y);
+      for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+      ctx.closePath();
+
+      if (fillStyle) {
+        ctx.fillStyle = fillStyle;
+        ctx.fill();
+      }
+      if (strokeStyle) {
+        ctx.strokeStyle = strokeStyle;
+        ctx.lineWidth = lineWidth;
+        ctx.stroke();
+      }
+    }
+
+    function drawGrid() {
+      const w = canvas.width;
+      const h = canvas.height;
+
+      const margin = 80 / scale;
+      const topLeftWorld = screenToWorld(-margin, -margin);
+      const bottomRightWorld = screenToWorld(w + margin, h + margin);
+
+      let gyMin = Math.floor(topLeftWorld.y / HEX_VERT_SPACING) - 2;
+      let gyMax = Math.ceil(bottomRightWorld.y / HEX_VERT_SPACING) + 2;
+
+      gyMin = Math.max(0, gyMin);
+      gyMax = Math.min(GRID_MAX_Y, gyMax);
+      gyMin = Math.max(gyMin, VIEW_MIN_Y);
+      gyMax = Math.min(gyMax, VIEW_MAX_Y);
+
+      for (let gy = gyMin; gy <= gyMax; gy++) {
+        const rowOffset = (gy & 1) ? HEX_HORIZ_SPACING * 0.5 : 0;
+
+        let gxMin = Math.floor((topLeftWorld.x - rowOffset) / HEX_HORIZ_SPACING) - 2;
+        let gxMax = Math.ceil((bottomRightWorld.x - rowOffset) / HEX_HORIZ_SPACING) + 2;
+
+        gxMin = Math.max(0, gxMin);
+        gxMax = Math.min(GRID_MAX_X, gxMax);
+        gxMin = Math.max(gxMin, VIEW_MIN_X);
+        gxMax = Math.min(gxMax, VIEW_MAX_X);
+
+        for (let gx = gxMin; gx <= gxMax; gx++) {
+          const { x: wx, y: wy } = gridToWorld(gx, gy);
+          const center = { x: wx, y: wy };
+
+          const isSelectedCell =
+            selectedCell && selectedCell.x === gx && selectedCell.y === gy;
+
+          const desertIn = pointInPolygon(center, desertPolygonWorld);
+          const desertDist = distanceToPolygonEdges(center, desertPolygonWorld);
+          const inDesert = desertIn || desertDist <= EDGE_THICKNESS_WORLD;
+
+          const blkIn = pointInPolygon(center, blockedPolygonWorld);
+          const blkDist = distanceToPolygonEdges(center, blockedPolygonWorld);
+          const inBlockedPolygon = blkIn || blkDist <= EDGE_THICKNESS_WORLD;
+
+          let inExtraBlocked = false;
+          for (const c of extraBlockedCells) {
+            if (gx === c.x && gy === c.y) {
+              inExtraBlocked = true;
+              break;
+            }
+          }
+          const inBlocked = inBlockedPolygon || inExtraBlocked;
+
+          const baseAt = findBaseAtCell(gx, gy);
+
+          let stroke, fill, lw;
+          if (isSelectedCell) {
+            stroke = "rgba(255,221,85,0.6)";
+            fill   = "rgba(255,221,85,0.18)";
+            lw = 1.5;
+          } else if (inBlocked) {
+            stroke = "rgba(255, 80, 80, 0.65)";
+            fill   = "rgba(255, 80, 80, 0.22)";
+            lw = 1.2;
+          } else if (baseAt) {
+            if (baseAt.status === "参加") {
+              stroke = "rgba(120, 255, 160, 0.85)";
+              fill   = "rgba(90, 230, 150, 0.28)";
+            } else if (baseAt.status === "不参加") {
+              stroke = "rgba(255, 140, 140, 0.85)";
+              fill   = "rgba(255, 110, 110, 0.28)";
+            } else {
+              stroke = "rgba(255, 230, 160, 0.85)";
+              fill   = "rgba(255, 220, 140, 0.26)";
+            }
+            lw = 1.4;
+          } else {
+            stroke = "rgba(210, 255, 210, 0.10)";
+            fill   = null;
+            lw = 0.8;
+          }
+
+          drawHexCenter(wx, wy, stroke, fill, lw);
+        }
+      }
+    }
+
+    function drawDesertOutline() {
+      ctx.beginPath();
+      desertPolygonWorld.forEach((p, i) => {
+        const s = worldToScreen(p.x, p.y);
+        if (i === 0) ctx.moveTo(s.x, s.y);
+        else ctx.lineTo(s.x, s.y);
+      });
+      ctx.closePath();
+      ctx.strokeStyle = "rgba(230,210,120,0.7)";
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+    }
+
+    function drawBlockedOutline() {
+      ctx.beginPath();
+      blockedPolygonWorld.forEach((p, i) => {
+        const s = worldToScreen(p.x, p.y);
+        if (i === 0) ctx.moveTo(s.x, s.y);
+        else ctx.lineTo(s.x, s.y);
+      });
+      ctx.closePath();
+      ctx.strokeStyle = "rgba(255, 80, 80, 0.7)";
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+    }
+
+    // ★ 地域ラベル（砂漠エリア / 芝生エリア ＆ 固定オブジェクト）
+    function drawRegionLabels() {
+      ctx.save();
+      ctx.fillStyle = "rgba(255,255,255,0.9)";
+      ctx.textAlign = "center";
+
+      let cx = 0, cy = 0;
+      desertVerticesGrid.forEach(v => {
+        cx += v.x;
+        cy += v.y;
+      });
+      cx /= desertVerticesGrid.length;
+      cy /= desertVerticesGrid.length;
+      const desertWorld = gridToWorld(cx, cy);
+      const desertScreen = worldToScreen(desertWorld.x, desertWorld.y);
+
+      let fontSize = Math.max(10, Math.min(22, 14 * scale * 2.5));
+      ctx.font = `${fontSize}px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+      ctx.textBaseline = "middle";
+      ctx.fillText("砂漠エリア", desertScreen.x, desertScreen.y);
+
+      const grassGrid = { x: 500, y: 550 };
+      const grassWorld = gridToWorld(grassGrid.x, grassGrid.y);
+      const grassScreen = worldToScreen(grassWorld.x, grassWorld.y);
+      ctx.fillStyle = "rgba(200,255,200,0.85)";
+      ctx.fillText("芝生エリア", grassScreen.x, grassScreen.y);
+
+      const fixedLabels = [
+        { x: 500, y: 500, text: "配置不可エリア" },
+        { x: 517, y: 500, text: "砲台3号" },
+        { x: 491, y: 483, text: "砲台2号" },
+        { x: 491, y: 517, text: "砲台1号" }
+      ];
+
+      fontSize = Math.max(9, Math.min(18, 12 * scale * 2));
+      ctx.font = `${fontSize}px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+      ctx.fillStyle = "rgba(255,255,255,0.9)";
+      ctx.textBaseline = "top";
+
+      fixedLabels.forEach(obj => {
+        const w = gridToWorld(obj.x, obj.y);
+        const s = worldToScreen(w.x, w.y);
+        const offset = HEX_SIZE * scale * 1.3;
+        ctx.fillText(obj.text, s.x, s.y + offset);
+      });
+
+      ctx.restore();
+    }
+
+    // 角丸矩形描画ヘルパー
+    function drawRoundedRect(ctx, x, y, w, h, r) {
+      const radius = Math.min(r, w / 2, h / 2);
+      ctx.beginPath();
+      ctx.moveTo(x + radius, y);
+      ctx.lineTo(x + w - radius, y);
+      ctx.quadraticCurveTo(x + w, y, x + w, y + radius);
+      ctx.lineTo(x + w, y + h - radius);
+      ctx.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
+      ctx.lineTo(x + radius, y + h);
+      ctx.quadraticCurveTo(x, y + h, x, y + h - radius);
+      ctx.lineTo(x, y + radius);
+      ctx.quadraticCurveTo(x, y, x + radius, y);
+      ctx.closePath();
+    }
+
+    // ★ 基地ラベル（パネル＋サムネ風アイコン）
+    function drawBaseLabels() {
+      ctx.save();
+
+      bases.forEach(b => {
+        const anchor = b.anchor || b.cells[0];
+        const world = gridToWorld(anchor.x, anchor.y);
+        const screen = worldToScreen(world.x, world.y);
+
+        const statusText = b.status || "不明";
+        const levelText  = b.level != null ? `Lv.${b.level}` : "Lv.-";
+        const statusLine = `${statusText} ${levelText}`;
+        const coordText  = `X${anchor.x} Y${anchor.y}`;
+        const nameText   = b.name;
+
+        const baseFontSize = Math.max(8, Math.min(16, 12 * scale * 2.5));
+        const lineHeight   = baseFontSize * 1.1;
+
+        ctx.font = `${baseFontSize}px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+
+        const nameWidth    = ctx.measureText(nameText).width;
+        const statusWidth  = ctx.measureText(statusLine).width;
+        const coordWidth   = ctx.measureText(coordText).width;
+
+        const textWidth = Math.max(nameWidth, statusWidth, coordWidth);
+        const thumbSize = lineHeight * 1.8;
+
+        const paddingX = 6 * scale * 2;
+        const paddingY = 4 * scale * 2;
+
+        const panelWidth  = Math.max(textWidth, thumbSize) + paddingX * 2;
+        const panelHeight = paddingY * 2 + thumbSize + 4 + lineHeight * 3;
+
+        const offsetAboveHex = HEX_SIZE * scale * 1.6;
+        const panelX = screen.x - panelWidth / 2;
+        const panelY = screen.y - offsetAboveHex - panelHeight;
+
+        ctx.globalAlpha = 0.9;
+        ctx.fillStyle = "rgba(0, 0, 0, 0.72)";
+        drawRoundedRect(ctx, panelX, panelY, panelWidth, panelHeight, 6);
+        ctx.fill();
+
+        ctx.globalAlpha = 1.0;
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.15)";
+        ctx.lineWidth = 1;
+        drawRoundedRect(ctx, panelX, panelY, panelWidth, panelHeight, 6);
+        ctx.stroke();
+
+        ctx.textAlign = "center";
+        ctx.textBaseline = "top";
+        ctx.font = `${baseFontSize}px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+
+        let cursorY = panelY + paddingY;
+
+        const thumbX = screen.x - thumbSize / 2;
+        const thumbY = cursorY;
+
+        ctx.fillStyle = "rgba(255,255,255,0.08)";
+        drawRoundedRect(ctx, thumbX, thumbY, thumbSize, thumbSize, 4);
+        ctx.fill();
+
+        ctx.fillStyle = "rgba(255,255,255,0.75)";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        const initial = (nameText && nameText.trim().length > 0)
+          ? nameText.trim().charAt(0)
+          : "?";
+        ctx.fillText(initial, screen.x, thumbY + thumbSize / 2);
+
+        cursorY += thumbSize + 4;
+
+        ctx.textAlign = "center";
+        ctx.textBaseline = "top";
+        ctx.fillStyle = "rgba(255,255,255,0.95)";
+        ctx.fillText(nameText, screen.x, cursorY);
+        cursorY += lineHeight;
+
+        ctx.fillStyle =
+          statusText === "参加"
+            ? "rgba(150, 255, 190, 0.95)"
+            : statusText === "不参加"
+            ? "rgba(255, 170, 170, 0.95)"
+            : "rgba(255, 230, 170, 0.95)";
+        ctx.fillText(statusLine, screen.x, cursorY);
+        cursorY += lineHeight;
+
+        ctx.fillStyle = "rgba(210, 230, 255, 0.95)";
+        ctx.fillText(coordText, screen.x, cursorY);
+      });
+
+      ctx.restore();
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawGrid();
+      drawDesertOutline();
+      drawBlockedOutline();
+      drawRegionLabels();
+      drawBaseLabels();
+
+      zoomDisplay.textContent = Math.round(scale * 100) + "%";
+      cellDisplay.textContent = selectedCell
+        ? `X${selectedCell.x} Y${selectedCell.y}`
+        : "—";
+    }
+
+    // ===== 操作 =====
+
+    // サイドバー開閉
+    sidebarToggle.addEventListener("click", () => {
+      const collapsed = sidebar.classList.toggle("collapsed");
+      sidebarToggle.textContent = collapsed ? "▼" : "▲";
+    });
+
+    // マウスダウン：基地ドラッグ or マップパン開始
+    canvas.addEventListener("mousedown", (e) => {
+      if (e.button !== 0) return;
+      const rect = canvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+      const cell = screenToGrid(mx, my);
+      selectedCell = cell;
+
+      const base = findBaseAtCell(cell.x, cell.y);
+      if (base) {
+        draggingBaseId = base.id;
+        lastDragCell = cell;
+        canvas.classList.add("dragging");
+      } else {
+        isPanning = true;
+        lastMouseX = e.clientX;
+        lastMouseY = e.clientY;
+        canvas.classList.add("dragging");
+      }
+      draw();
+    });
+
+    // マウス移動
+    window.addEventListener("mousemove", (e) => {
+      if (draggingBaseId) {
+        const rect = canvas.getBoundingClientRect();
+        const mx = e.clientX - rect.left;
+        const my = e.clientY - rect.top;
+        const cell = screenToGrid(mx, my);
+        if (!lastDragCell || cell.x !== lastDragCell.x || cell.y !== lastDragCell.y) {
+          moveBaseToGrid(draggingBaseId, cell.x, cell.y);
+          lastDragCell = cell;
+        }
+        return;
+      }
+
+      if (!isPanning) return;
+      const dx = e.clientX - lastMouseX;
+      const dy = e.clientY - lastMouseY;
+      lastMouseX = e.clientX;
+      lastMouseY = e.clientY;
+      offsetX += dx;
+      offsetY += dy;
+      draw();
+    });
+
+    // マウスアップ
+    window.addEventListener("mouseup", () => {
+      isPanning = false;
+      draggingBaseId = null;
+      lastDragCell = null;
+      canvas.classList.remove("dragging");
+    });
+
+    // ホイールズーム
+    canvas.addEventListener("wheel", (e) => {
+      e.preventDefault();
+      const rect = canvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+
+      const zoomDelta = e.deltaY > 0 ? -0.1 : 0.1;
+      let newScale = scale + zoomDelta * scale;
+      newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, newScale));
+      if (newScale === scale) return;
+
+      const worldBefore = screenToWorld(mx, my);
+      scale = newScale;
+      const worldAfter = screenToWorld(mx, my);
+
+      offsetX += (worldAfter.x - worldBefore.x) * scale;
+      offsetY += (worldAfter.y - worldBefore.y) * scale;
+
+      draw();
+    }, { passive: false });
+
+    // クリック：セル選択
+    canvas.addEventListener("click", (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+      const cell = screenToGrid(mx, my);
+      selectedCell = cell;
+      draw();
+    });
+
+    // ダブルクリック：基地追加 or 名前変更/削除
+    canvas.addEventListener("dblclick", (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+      const cell = screenToGrid(mx, my);
+      selectedCell = cell;
+
+      const base = findBaseAtCell(cell.x, cell.y);
+      if (base) {
+        renameOrDeleteBase(base);
+      } else {
+        addBaseAtGrid(cell.x, cell.y);
+      }
+    });
+
+    // タッチ操作（スマホ） 基地ドラッグ or マップパン or 長押しで基地追加
+    canvas.addEventListener("touchstart", (e) => {
+      if (e.touches.length !== 1) return;
+      const t = e.touches[0];
+      const rect = canvas.getBoundingClientRect();
+      const mx = t.clientX - rect.left;
+      const my = t.clientY - rect.top;
+      const cell = screenToGrid(mx, my);
+      selectedCell = cell;
+
+      const base = findBaseAtCell(cell.x, cell.y);
+      if (base) {
+        draggingBaseId = base.id;
+        lastDragCell = cell;
+      } else {
+        // 長押しで基地追加
+        touchHoldCell = cell;
+        touchHoldTimer = setTimeout(() => {
+          touchHoldTimer = null;
+          const nowBase = findBaseAtCell(touchHoldCell.x, touchHoldCell.y);
+          if (!nowBase) {
+            addBaseAtGrid(touchHoldCell.x, touchHoldCell.y);
+          }
+        }, TOUCH_HOLD_MS);
+        isPanning = true;
+        lastMouseX = t.clientX;
+        lastMouseY = t.clientY;
+      }
+      canvas.classList.add("dragging");
+      draw();
+    }, { passive: true });
+
+    canvas.addEventListener("touchmove", (e) => {
+      if (e.touches.length !== 1) return;
+      const t = e.touches[0];
+      const rect = canvas.getBoundingClientRect();
+      const mx = t.clientX - rect.left;
+      const my = t.clientY - rect.top;
+
+      // 動いたら長押しキャンセル
+      if (touchHoldTimer) {
+        const dx = Math.abs(t.clientX - lastMouseX);
+        const dy = Math.abs(t.clientY - lastMouseY);
+        if (dx > 10 || dy > 10) {
+          clearTimeout(touchHoldTimer);
+          touchHoldTimer = null;
+        }
+      }
+
+      if (draggingBaseId) {
+        const cell = screenToGrid(mx, my);
+        if (!lastDragCell || cell.x !== lastDragCell.x || cell.y !== lastDragCell.y) {
+          moveBaseToGrid(draggingBaseId, cell.x, cell.y);
+          lastDragCell = cell;
+        }
+        return;
+      }
+
+      if (!isPanning) return;
+      const dx = t.clientX - lastMouseX;
+      const dy = t.clientY - lastMouseY;
+      lastMouseX = t.clientX;
+      lastMouseY = t.clientY;
+      offsetX += dx;
+      offsetY += dy;
+      draw();
+    }, { passive: true });
+
+    window.addEventListener("touchend", () => {
+      if (touchHoldTimer) {
+        clearTimeout(touchHoldTimer);
+        touchHoldTimer = null;
+      }
+      isPanning = false;
+      draggingBaseId = null;
+      lastDragCell = null;
+      touchHoldCell = null;
+      canvas.classList.remove("dragging");
+    });
+  </script>
+</body>
+</html>
