@@ -81,6 +81,8 @@
       gap: 4px;
       flex-shrink: 0;
       align-items: center;
+      flex-wrap: wrap;
+      justify-content: flex-end;
     }
     .sidebar-actions button {
       border: none;
@@ -91,6 +93,7 @@
       background: rgba(255,255,255,0.1);
       color: #f5f5f5;
       white-space: nowrap;
+      min-width: 30px;
     }
     .sidebar-actions button:hover {
       background: rgba(255,255,255,0.2);
@@ -98,6 +101,7 @@
     #toggle-sidebar {
       font-size: 12px;
       padding: 2px 8px;
+      min-width: 26px;
     }
 
     #base-list-wrapper {
@@ -128,7 +132,7 @@
     #base-list li.base-item {
       display: flex;
       gap: 6px;
-      padding: 5px 6px;
+      padding: 6px 7px;
       border-radius: 10px;
       background: rgba(255,255,255,0.04);
       margin-bottom: 4px;
@@ -140,8 +144,8 @@
     }
 
     .base-color-dot {
-      width: 16px;
-      height: 16px;
+      width: 18px;
+      height: 18px;
       border-radius: 50%;
       flex-shrink: 0;
       border: 1px solid rgba(0,0,0,0.5);
@@ -195,20 +199,20 @@
     .zoom-buttons {
       position: fixed;
       right: 10px;
-      bottom: 60px;
+      bottom: 64px;
       display: flex;
       flex-direction: column;
       gap: 4px;
       z-index: 10;
     }
     .zoom-buttons button {
-      width: 32px;
-      height: 32px;
-      border-radius: 8px;
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
       border: none;
       background: rgba(0,0,0,0.75);
       color: #fff;
-      font-size: 18px;
+      font-size: 20px;
       cursor: pointer;
     }
 
@@ -234,21 +238,26 @@
       }
       .zoom-buttons {
         right: 8px;
-        bottom: 52px;
+        bottom: 54px;
       }
       .sidebar {
-        width: calc(100% - 20px);
-        left: 10px;
-        right: 10px;
-        top: 8px;
-        max-height: 40%;
+        width: 100%;
+        left: 0;
+        right: 0;
+        top: auto;
+        bottom: 0;
+        border-radius: 16px 16px 0 0;
+        max-height: 45%;
       }
       .sidebar-title {
-        font-size: 10px;
+        font-size: 11px;
       }
       .sidebar-actions button {
-        font-size: 9px;
-        padding: 2px 4px;
+        font-size: 10px;
+        padding: 3px 6px;
+      }
+      #base-list li.base-item {
+        padding: 7px 8px;
       }
       .note-pc { display: none; }
       .note-sp { display: block; }
@@ -262,9 +271,12 @@
     <div class="sidebar-header">
       <div class="sidebar-title">284 Capital - 基地一覧</div>
       <div class="sidebar-actions">
-        <button id="copy-btn">コピー</button>
-        <button id="toggle-popups-label-btn">ポップ</button>
+        <button id="copy-btn">Copy</button>
+        <button id="export-btn">Exp</button>
+        <button id="import-btn">Imp</button>
+        <button id="toggle-popups-label-btn">Pop</button>
         <button id="toggle-sidebar">－</button>
+        <input type="file" id="import-file" accept="application/json" style="display:none" />
       </div>
     </div>
 
@@ -278,13 +290,14 @@
 
     <div class="sidebar-note">
       <div class="note-pc">
-        【PC】空きマス：ダブルクリックで基地追加 / 基地マス：ダブルクリックで編集・削除 / 左ドラッグで移動 / ホイールや＋－ボタンでズーム
+        【PC】空きマス：ダブルクリックで基地追加 / 基地マス：ダブルクリックで編集・削除 / 左ドラッグで移動 / ホイールや＋－ボタンでズーム<br>
+        ・Copy: 同盟名・基地名・座標をクリップボードへ<br>
+        ・Exp/Imp: JSONファイルでエクスポート／インポート
       </div>
       <div class="note-sp">
-        【スマホ】空きマス：同じマスを素早く2回タップで基地追加 / 基地マス：2回タップで編集・削除 / 1本指ドラッグで移動 / ピンチまたは＋－ボタンでズーム
-      </div>
-      <div style="margin-top:2px;">
-        コピー：同盟名・基地名・座標（X*** Y***）をまとめてクリップボードへ
+        【スマホ】空きマス：同じマスを素早く2回タップで基地追加 / 基地マス：2回タップで編集・削除 / 1本指ドラッグで移動 / ピンチまたは＋－ボタンでズーム<br>
+        ・Copy: 同盟名・基地名・座標をコピー<br>
+        ・Exp/Imp: JSONファイルで保存／読み込み
       </div>
     </div>
   </div>
@@ -364,6 +377,11 @@
     const togglePopupsCheckbox = document.getElementById("toggle-popups");
     const togglePopupsLabelBtn = document.getElementById("toggle-popups-label-btn");
 
+    // インポート／エクスポート
+    const exportBtn = document.getElementById("export-btn");
+    const importBtn = document.getElementById("import-btn");
+    const importFileInput = document.getElementById("import-file");
+
     // ダイアログ関連
     const baseDialog = document.getElementById("base-dialog");
     const dlgAlliance = document.getElementById("dlg-alliance");
@@ -385,7 +403,7 @@
     const HEX_VERT_SPACING  = 1.5 * HEX_SIZE;
     const HEX_HORIZ_SPACING = HEX_WIDTH;
     const EDGE_THICKNESS_WORLD = HEX_SIZE * 0.8;
-    const STORAGE_KEY = "hexmap_bases_v6";
+    const STORAGE_KEY = "hexmap_bases_v7";
 
     let scale = 0.35;
     let offsetX = 0;
@@ -521,6 +539,12 @@
         initDialogSelectors();
         loadBases();
         updateBaseListUI();
+
+        // スマホは起動時サイドバーを折りたたみ
+        if (window.innerWidth <= 768) {
+          sidebarEl.classList.add("collapsed");
+          toggleSidebarBtn.textContent = "＋";
+        }
       }
       draw();
     }
@@ -626,7 +650,7 @@
       }
     }
 
-    // ===== 保存・読み込み =====
+    // ===== 保存・読み込み・インポート／エクスポート =====
     function makeSerializableData() {
       return {
         bases: bases.map(b => ({
@@ -674,13 +698,81 @@
       }
     }
 
+    function importBasesFromData(data) {
+      if (!data || !Array.isArray(data.bases)) {
+        alert("インポートするJSONの形式が不正です。");
+        return;
+      }
+      if (!confirm("現在の基地データを全て置き換えますか？")) return;
+
+      bases.length = 0;
+      data.bases.forEach(rec => {
+        if (!rec.anchor) return;
+        const cells = createBaseCellsForAnchor(rec.anchor.x, rec.anchor.y, null);
+        if (!cells) return;
+        bases.push({
+          id: rec.id || (Date.now().toString(36) + Math.random().toString(36).slice(2,7)),
+          allianceKey: rec.allianceKey || "B777",
+          name: rec.name || "基地",
+          status: rec.status || "不明",
+          level: rec.level ?? null,
+          tier: rec.tier || "T1",
+          cells,
+          anchor: rec.anchor
+        });
+      });
+      baseCount = bases.length;
+      saveBases();
+      updateBaseListUI();
+      draw();
+    }
+
+    function exportBasesToFile() {
+      const data = makeSerializableData();
+      const json = JSON.stringify(data, null, 2);
+      const blob = new Blob([json], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "bases.json";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    function handleImportFile(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        try {
+          const data = JSON.parse(ev.target.result);
+          importBasesFromData(data);
+        } catch (err) {
+          console.error(err);
+          alert("JSONの読み込みに失敗しました。");
+        } finally {
+          importFileInput.value = "";
+        }
+      };
+      reader.readAsText(file, "utf-8");
+    }
+
+    exportBtn.addEventListener("click", () => {
+      exportBasesToFile();
+    });
+    importBtn.addEventListener("click", () => {
+      importFileInput.click();
+    });
+    importFileInput.addEventListener("change", handleImportFile);
+
     // ===== ダイアログ =====
     let dialogMode = "create"; // create / edit
     let dialogCell = null;
     let dialogEditingBase = null;
 
     function initDialogSelectors() {
-      // 同盟
       dlgAlliance.innerHTML = "";
       ALLIANCES.forEach(a => {
         const opt = document.createElement("option");
@@ -689,7 +781,6 @@
         dlgAlliance.appendChild(opt);
       });
 
-      // レベル 30 → 1
       dlgLevel.innerHTML = "";
       for (let lv = 30; lv >= 1; lv--) {
         const opt = document.createElement("option");
@@ -698,7 +789,6 @@
         dlgLevel.appendChild(opt);
       }
 
-      // Tランク T10 → T1
       dlgTier.innerHTML = "";
       for (let t = 10; t >= 1; t--) {
         const opt = document.createElement("option");
@@ -715,7 +805,6 @@
       const usedNames = new Set(bases.map(b => b.name));
       alliance.members.forEach(name => {
         if (dialogMode === "edit" && name === currentName) {
-          // 編集時は自分の名前は選択可能に残す
           const opt = document.createElement("option");
           opt.value = name;
           opt.textContent = name;
@@ -850,7 +939,6 @@
     // ===== リストUI =====
     function updateBaseListUI() {
       baseListEl.innerHTML = "";
-      // ソート（同盟→レベル降順→名前）
       const sorted = [...bases].sort((a, b) => {
         if (a.allianceKey !== b.allianceKey) {
           return a.allianceKey.localeCompare(b.allianceKey);
@@ -1355,7 +1443,6 @@
     }, { passive: true });
 
     window.addEventListener("touchend", (e) => {
-      // タップ距離・時間からダブルタップ判定
       const now = Date.now();
       const rect = canvas.getBoundingClientRect();
 
@@ -1373,7 +1460,7 @@
             lastTapCell.x === cell.x &&
             lastTapCell.y === cell.y
           ) {
-            // ダブルタップとして処理
+            // ダブルタップ
             handleCellDoubleAction(cell);
             lastTapTime = 0;
             lastTapCell = null;
