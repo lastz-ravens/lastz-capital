@@ -3,6 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <title>284 Capital</title>
+  <!-- ★ スマホでちゃんとスマホ版レイアウトになるように -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body {
@@ -11,6 +13,7 @@
       background: #050608;
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       color: #f5f5f5;
+      font-size: 15px; /* ベース文字サイズUP */
     }
     #map-canvas {
       width: 100%;
@@ -26,11 +29,11 @@
       position: fixed;
       right: 10px;
       bottom: 10px;
-      padding: 6px 10px;
+      padding: 7px 11px;
       border-radius: 999px;
       background: rgba(0, 0, 0, .65);
       backdrop-filter: blur(10px);
-      font-size: 11px;
+      font-size: 13px; /* UP */
       display: flex;
       gap: 8px;
       align-items: center;
@@ -45,12 +48,12 @@
       position: fixed;
       left: 10px;
       top: 10px;
-      width: 280px;
-      padding: 10px;
+      width: 300px; /* 少し広め */
+      padding: 12px;
       border-radius: 16px;
       background: rgba(0, 0, 0, 0.9);
       backdrop-filter: blur(14px);
-      font-size: 12px;
+      font-size: 14px; /* UP */
       z-index: 20;
       pointer-events: auto;
       max-height: calc(100% - 20px);
@@ -60,7 +63,7 @@
     .sidebar.collapsed {
       height: auto;
       max-height: none;
-      padding: 6px 10px;
+      padding: 8px 12px;
     }
 
     .sidebar-header {
@@ -68,10 +71,10 @@
       align-items: center;
       justify-content: space-between;
       gap: 6px;
-      margin-bottom: 6px;
+      margin-bottom: 8px;
     }
     .sidebar-title {
-      font-size: 11px;
+      font-size: 13px; /* UP */
       text-transform: uppercase;
       letter-spacing: 0.06em;
       opacity: 0.8;
@@ -87,21 +90,21 @@
     .sidebar-actions button {
       border: none;
       border-radius: 999px;
-      padding: 2px 6px;
-      font-size: 10px;
+      padding: 3px 7px;
+      font-size: 12px; /* UP */
       cursor: pointer;
       background: rgba(255,255,255,0.1);
       color: #f5f5f5;
       white-space: nowrap;
-      min-width: 30px;
+      min-width: 32px;
     }
     .sidebar-actions button:hover {
       background: rgba(255,255,255,0.2);
     }
     #toggle-sidebar {
-      font-size: 12px;
-      padding: 2px 8px;
-      min-width: 26px;
+      font-size: 14px;
+      padding: 3px 9px;
+      min-width: 28px;
     }
 
     #base-list-wrapper {
@@ -121,7 +124,7 @@
 
     .sidebar-note {
       margin-top: 6px;
-      font-size: 10px;
+      font-size: 11px; /* 説明欄だけ小さめのまま */
       opacity: 0.7;
       border-top: 1px solid rgba(255,255,255,0.08);
       padding-top: 4px;
@@ -131,8 +134,8 @@
 
     #base-list li.base-item {
       display: flex;
-      gap: 6px;
-      padding: 6px 7px;
+      gap: 7px;
+      padding: 7px 8px;
       border-radius: 10px;
       background: rgba(255,255,255,0.04);
       margin-bottom: 4px;
@@ -144,8 +147,8 @@
     }
 
     .base-color-dot {
-      width: 18px;
-      height: 18px;
+      width: 20px;
+      height: 20px;
       border-radius: 50%;
       flex-shrink: 0;
       border: 1px solid rgba(0,0,0,0.5);
@@ -162,14 +165,14 @@
       gap: 4px;
     }
     .base-name {
-      font-size: 13px;
+      font-size: 14px; /* UP */
       font-weight: 600;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
     .base-alliance {
-      font-size: 11px;
+      font-size: 13px; /* UP */
       opacity: 0.8;
       white-space: nowrap;
     }
@@ -179,7 +182,7 @@
       align-items: center;
       margin-top: 2px;
       gap: 4px;
-      font-size: 11px;
+      font-size: 13px; /* UP */
     }
     .base-coord {
       opacity: 0.8;
@@ -199,46 +202,51 @@
     .zoom-buttons {
       position: fixed;
       right: 10px;
-      bottom: 64px;
+      bottom: 72px;
       display: flex;
       flex-direction: column;
       gap: 4px;
       z-index: 10;
     }
     .zoom-buttons button {
-      width: 36px;
-      height: 36px;
+      width: 40px;
+      height: 40px;
       border-radius: 10px;
       border: none;
       background: rgba(0,0,0,0.75);
       color: #fff;
-      font-size: 20px;
+      font-size: 22px;
       cursor: pointer;
     }
 
     /* ポップ表示切替 */
     #toggle-popups-label {
-      font-size: 10px;
+      font-size: 12px; /* UP */
       display: flex;
       align-items: center;
       gap: 4px;
-      margin-top: 2px;
-      opacity: 0.85;
+      margin-top: 3px;
+      opacity: 0.9;
     }
     #toggle-popups {
-      width: 14px;
-      height: 14px;
+      width: 16px;
+      height: 16px;
     }
 
     @media (max-width: 768px) {
       .hud {
         right: 8px;
         bottom: 8px;
-        font-size: 10px;
+        font-size: 12px;
       }
       .zoom-buttons {
         right: 8px;
-        bottom: 54px;
+        bottom: 60px;
+      }
+      .zoom-buttons button {
+        width: 44px;
+        height: 44px;
+        font-size: 24px;
       }
       .sidebar {
         width: 100%;
@@ -248,16 +256,17 @@
         bottom: 0;
         border-radius: 16px 16px 0 0;
         max-height: 45%;
+        font-size: 14px;
       }
       .sidebar-title {
-        font-size: 11px;
+        font-size: 13px;
       }
       .sidebar-actions button {
-        font-size: 10px;
-        padding: 3px 6px;
+        font-size: 12px;
+        padding: 4px 7px;
       }
       #base-list li.base-item {
-        padding: 7px 8px;
+        padding: 8px 9px;
       }
       .note-pc { display: none; }
       .note-sp { display: block; }
@@ -317,20 +326,20 @@
   <!-- 基地追加・編集ダイアログ -->
   <div id="base-dialog"
        style="position:fixed; inset:0; display:none; align-items:center; justify-content:center; z-index:30; background:rgba(0,0,0,0.6);">
-    <div style="background:#101317; padding:12px 14px; border-radius:12px; width:280px; max-width:90%; font-size:12px;">
-      <div style="font-size:13px; font-weight:600; margin-bottom:6px;">基地の追加 / 編集</div>
-      <div style="display:flex; flex-direction:column; gap:6px;">
+    <div style="background:#101317; padding:14px 16px; border-radius:12px; width:300px; max-width:90%; font-size:14px;">
+      <div style="font-size:15px; font-weight:600; margin-bottom:8px;">基地の追加 / 編集</div>
+      <div style="display:flex; flex-direction:column; gap:8px;">
         <label>
           <span>所属同盟</span><br/>
-          <select id="dlg-alliance" style="width:100%; margin-top:2px; font-size:12px;"></select>
+          <select id="dlg-alliance" style="width:100%; margin-top:2px; font-size:14px;"></select>
         </label>
         <label>
           <span>基地名</span><br/>
-          <select id="dlg-name" style="width:100%; margin-top:2px; font-size:12px;"></select>
+          <select id="dlg-name" style="width:100%; margin-top:2px; font-size:14px;"></select>
         </label>
         <label>
           <span>参加状態</span><br/>
-          <select id="dlg-status" style="width:100%; margin-top:2px; font-size:12px;">
+          <select id="dlg-status" style="width:100%; margin-top:2px; font-size:14px;">
             <option value="参加">参加</option>
             <option value="不参加">不参加</option>
             <option value="不明" selected>不明</option>
@@ -338,25 +347,25 @@
         </label>
         <label>
           <span>レベル</span><br/>
-          <select id="dlg-level" style="width:100%; margin-top:2px; font-size:12px;"></select>
+          <select id="dlg-level" style="width:100%; margin-top:2px; font-size:14px;"></select>
         </label>
         <label>
           <span>Tランク</span><br/>
-          <select id="dlg-tier" style="width:100%; margin-top:2px; font-size:12px;"></select>
+          <select id="dlg-tier" style="width:100%; margin-top:2px; font-size:14px;"></select>
         </label>
-        <div style="font-size:11px; opacity:0.7;" id="dlg-coord-text"></div>
+        <div style="font-size:12px; opacity:0.7;" id="dlg-coord-text"></div>
       </div>
-      <div style="display:flex; justify-content:flex-end; gap:6px; margin-top:10px;">
+      <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:12px;">
         <button id="dlg-cancel"
-                style="border:none; border-radius:999px; padding:4px 10px; font-size:12px; background:#444; color:#f5f5f5;">
+                style="border:none; border-radius:999px; padding:5px 12px; font-size:14px; background:#444; color:#f5f5f5;">
           キャンセル
         </button>
         <button id="dlg-delete"
-                style="border:none; border-radius:999px; padding:4px 10px; font-size:12px; background:#aa3333; color:#fff; display:none;">
+                style="border:none; border-radius:999px; padding:5px 12px; font-size:14px; background:#aa3333; color:#fff; display:none;">
           削除
         </button>
         <button id="dlg-ok"
-                style="border:none; border-radius:999px; padding:4px 10px; font-size:12px; background:#2c7be5; color:#fff;">
+                style="border:none; border-radius:999px; padding:5px 12px; font-size:14px; background:#2c7be5; color:#fff;">
           決定
         </button>
       </div>
@@ -377,12 +386,10 @@
     const togglePopupsCheckbox = document.getElementById("toggle-popups");
     const togglePopupsLabelBtn = document.getElementById("toggle-popups-label-btn");
 
-    // インポート／エクスポート
     const exportBtn = document.getElementById("export-btn");
     const importBtn = document.getElementById("import-btn");
     const importFileInput = document.getElementById("import-file");
 
-    // ダイアログ関連
     const baseDialog = document.getElementById("base-dialog");
     const dlgAlliance = document.getElementById("dlg-alliance");
     const dlgName = document.getElementById("dlg-name");
@@ -394,7 +401,6 @@
     const dlgOk = document.getElementById("dlg-ok");
     const dlgDelete = document.getElementById("dlg-delete");
 
-    // ===== 基本設定 =====
     const HEX_SIZE = 20;
     const GRID_MAX_X = 999;
     const GRID_MAX_Y = 999;
@@ -416,19 +422,16 @@
     let lastMouseY = 0;
     let selectedCell = null;
 
-    // タッチ系（ダブルタップ検出用）
     let touchStartX = 0;
     let touchStartY = 0;
     let lastTapTime = 0;
     let lastTapCell = null;
-    const TAP_MAX_DELAY = 320;  // ms
-    const TAP_MAX_MOVE  = 12;   // px
+    const TAP_MAX_DELAY = 320;
+    const TAP_MAX_MOVE  = 12;
 
-    // 基地ドラッグ
     let draggingBaseId = null;
     let lastDragCell = null;
 
-    // 基地 {id, allianceKey, name, status, level, tier, cells[], anchor{x,y}}
     const bases = [];
     let baseCount = 0;
 
@@ -440,7 +443,6 @@
     const VIEW_MIN_Y = Math.max(0, CAPITAL_CENTER_Y - VIEW_RADIUS);
     const VIEW_MAX_Y = Math.min(GRID_MAX_Y, CAPITAL_CENTER_Y + VIEW_RADIUS);
 
-    // ===== 同盟データ（B777＋メンバー） =====
     const ALLIANCES = [
       {
         key: "B777",
@@ -465,7 +467,6 @@
     const allianceMap = {};
     ALLIANCES.forEach(a => { allianceMap[a.key] = a; });
 
-    // ===== エリアポリゴン =====
     const desertVerticesGrid = [
       { x: 482, y: 465 },
       { x: 465, y: 500 },
@@ -499,7 +500,6 @@
     let desertPolygonWorld = [];
     let blockedPolygonWorld = [];
 
-    // 基地形状（半径1の7マス）
     const basePatternAxial = [
       { dq: 0, dr: 0 },
       { dq: 1, dr: 0 },
@@ -510,7 +510,6 @@
       { dq: 1, dr: -1 }
     ];
 
-    /* odd-r <-> axial */
     function oddrToAxial(col, row) {
       const q = col - (row - (row & 1)) / 2;
       const r = row;
@@ -540,7 +539,6 @@
         loadBases();
         updateBaseListUI();
 
-        // スマホは起動時サイドバーを折りたたみ
         if (window.innerWidth <= 768) {
           sidebarEl.classList.add("collapsed");
           toggleSidebarBtn.textContent = "＋";
@@ -551,7 +549,6 @@
     window.addEventListener("resize", resizeCanvas);
     resizeCanvas();
 
-    // ===== 座標変換 =====
     function gridToWorld(gx, gy) {
       const wx = HEX_HORIZ_SPACING * (gx + (gy & 1) * 0.5);
       const wy = HEX_VERT_SPACING * gy;
@@ -573,7 +570,6 @@
       return { x: gx, y: gy };
     }
 
-    // ===== 幾何 =====
     function pointInPolygon(point, polygon) {
       let inside = false;
       for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
@@ -619,7 +615,6 @@
       return inside || dist <= EDGE_THICKNESS_WORLD;
     }
 
-    // ===== 基地 =====
     function findBaseAtCell(gx, gy) {
       return bases.find(b => b.cells.some(c => c.x === gx && c.y === gy)) || null;
     }
@@ -650,7 +645,6 @@
       }
     }
 
-    // ===== 保存・読み込み・インポート／エクスポート =====
     function makeSerializableData() {
       return {
         bases: bases.map(b => ({
@@ -726,7 +720,6 @@
       updateBaseListUI();
       draw();
     }
-
     function exportBasesToFile() {
       const data = makeSerializableData();
       const json = JSON.stringify(data, null, 2);
@@ -740,7 +733,6 @@
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     }
-
     function handleImportFile(e) {
       const file = e.target.files[0];
       if (!file) return;
@@ -758,17 +750,11 @@
       };
       reader.readAsText(file, "utf-8");
     }
-
-    exportBtn.addEventListener("click", () => {
-      exportBasesToFile();
-    });
-    importBtn.addEventListener("click", () => {
-      importFileInput.click();
-    });
+    exportBtn.addEventListener("click", exportBasesToFile);
+    importBtn.addEventListener("click", () => importFileInput.click());
     importFileInput.addEventListener("change", handleImportFile);
 
-    // ===== ダイアログ =====
-    let dialogMode = "create"; // create / edit
+    let dialogMode = "create";
     let dialogCell = null;
     let dialogEditingBase = null;
 
@@ -797,7 +783,6 @@
         dlgTier.appendChild(opt);
       }
     }
-
     function updateNameOptionsForAlliance(allianceKey, currentName = null) {
       const alliance = allianceMap[allianceKey];
       dlgName.innerHTML = "";
@@ -823,7 +808,6 @@
         dlgName.appendChild(opt);
       }
     }
-
     function openBaseDialogForCreate(cell) {
       dialogMode = "create";
       dialogCell = cell;
@@ -840,7 +824,6 @@
       dlgCoordText.textContent = `配置セル: X${cell.x} Y${cell.y}`;
       baseDialog.style.display = "flex";
     }
-
     function openBaseDialogForEdit(base) {
       dialogMode = "edit";
       dialogEditingBase = base;
@@ -857,23 +840,17 @@
       dlgCoordText.textContent = `配置セル: X${base.anchor.x} Y${base.anchor.y}`;
       baseDialog.style.display = "flex";
     }
-
     function closeBaseDialog() {
       baseDialog.style.display = "none";
       dialogCell = null;
       dialogEditingBase = null;
     }
-
     dlgAlliance.addEventListener("change", () => {
       const key = dlgAlliance.value;
       const currentName = dialogEditingBase ? dialogEditingBase.name : null;
       updateNameOptionsForAlliance(key, currentName);
     });
-
-    dlgCancel.addEventListener("click", () => {
-      closeBaseDialog();
-    });
-
+    dlgCancel.addEventListener("click", closeBaseDialog);
     dlgDelete.addEventListener("click", () => {
       if (!dialogEditingBase) return;
       if (confirm(`基地「${dialogEditingBase.name}」を削除しますか？`)) {
@@ -881,7 +858,6 @@
         closeBaseDialog();
       }
     });
-
     dlgOk.addEventListener("click", () => {
       const allianceKey = dlgAlliance.value;
       const alliance = allianceMap[allianceKey] || ALLIANCES[0];
@@ -890,10 +866,7 @@
       const level = Number(dlgLevel.value || "0");
       const tier = dlgTier.value || "T1";
 
-      if (!dialogCell) {
-        closeBaseDialog();
-        return;
-      }
+      if (!dialogCell) { closeBaseDialog(); return; }
       const gx = dialogCell.x;
       const gy = dialogCell.y;
 
@@ -936,7 +909,6 @@
       closeBaseDialog();
     });
 
-    // ===== リストUI =====
     function updateBaseListUI() {
       baseListEl.innerHTML = "";
       const sorted = [...bases].sort((a, b) => {
@@ -1005,7 +977,6 @@
       });
     }
 
-    // ===== 描画 =====
     function drawHexCenter(wx, wy, strokeStyle, fillStyle, lineWidth = 1) {
       const { x: sx, y: sy } = worldToScreen(wx, wy);
       const s = HEX_SIZE * scale;
@@ -1151,8 +1122,8 @@
       const desertWorld = gridToWorld(cx, cy);
       const desertScreen = worldToScreen(desertWorld.x, desertWorld.y);
 
-      let fontSize = Math.max(11, Math.min(22, 14 * scale * 2.5));
-      ctx.font = `${fontSize}px system-ui, -apple-system, BlinkMacSystemFont,"Segoe UI",sans-serif`;
+      let fontSize = Math.max(12, Math.min(24, 15 * scale * 2.5));
+      ctx.font = `${fontSize}px system-ui,"-apple-system","BlinkMacSystemFont","Segoe UI",sans-serif`;
       ctx.textBaseline = "middle";
       ctx.fillText("砂漠エリア", desertScreen.x, desertScreen.y);
 
@@ -1168,8 +1139,8 @@
         { x: 491, y: 517, text: "砲台1号" }
       ];
 
-      fontSize = Math.max(9, Math.min(18, 12 * scale * 2));
-      ctx.font = `${fontSize}px system-ui, -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif`;
+      fontSize = Math.max(10, Math.min(20, 13 * scale * 2));
+      ctx.font = `${fontSize}px system-ui,"-apple-system","BlinkMacSystemFont","Segoe UI",sans-serif`;
       ctx.fillStyle = "rgba(255,255,255,0.9)";
       ctx.textBaseline = "top";
 
@@ -1215,7 +1186,7 @@
         const statusLine = `${statusText} ${tierText} ${levelText}`;
         const coordText = `X${anchor.x} Y${anchor.y}`;
 
-        const baseFontSize = Math.max(9, Math.min(16, 12 * scale * 2.5));
+        const baseFontSize = Math.max(11, Math.min(18, 14 * scale * 2.5));
         const lineHeight = baseFontSize * 1.15;
 
         ctx.font = `${baseFontSize}px system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif`;
@@ -1301,17 +1272,12 @@
         : "—";
     }
 
-    // ===== マップ操作 =====
     function handleCellDoubleAction(cell) {
       const base = findBaseAtCell(cell.x, cell.y);
-      if (base) {
-        openBaseDialogForEdit(base);
-      } else {
-        openBaseDialogForCreate(cell);
-      }
+      if (base) openBaseDialogForEdit(base);
+      else openBaseDialogForCreate(cell);
     }
 
-    // マウス
     canvas.addEventListener("mousedown", (e) => {
       if (e.button !== 0) return;
       const rect = canvas.getBoundingClientRect();
@@ -1332,7 +1298,6 @@
       canvas.classList.add("dragging");
       draw();
     });
-
     window.addEventListener("mousemove", (e) => {
       if (draggingBaseId) {
         const rect = canvas.getBoundingClientRect();
@@ -1354,14 +1319,12 @@
       offsetY += dy;
       draw();
     });
-
     window.addEventListener("mouseup", () => {
       isPanning = false;
       draggingBaseId = null;
       lastDragCell = null;
       canvas.classList.remove("dragging");
     });
-
     canvas.addEventListener("wheel", (e) => {
       e.preventDefault();
       const rect = canvas.getBoundingClientRect();
@@ -1370,7 +1333,6 @@
       const delta = e.deltaY > 0 ? -0.1 : 0.1;
       zoomAt(mx, my, delta);
     }, { passive: false });
-
     canvas.addEventListener("click", (e) => {
       const rect = canvas.getBoundingClientRect();
       const mx = e.clientX - rect.left;
@@ -1379,7 +1341,6 @@
       selectedCell = cell;
       draw();
     });
-
     canvas.addEventListener("dblclick", (e) => {
       const rect = canvas.getBoundingClientRect();
       const mx = e.clientX - rect.left;
@@ -1389,7 +1350,6 @@
       handleCellDoubleAction(cell);
     });
 
-    // タッチ（スマホ）: ドラッグ + ダブルタップ検出
     canvas.addEventListener("touchstart", (e) => {
       if (e.touches.length !== 1) return;
       const t = e.touches[0];
@@ -1415,7 +1375,6 @@
       canvas.classList.add("dragging");
       draw();
     }, { passive: true });
-
     canvas.addEventListener("touchmove", (e) => {
       if (e.touches.length !== 1) return;
       const t = e.touches[0];
@@ -1441,7 +1400,6 @@
       offsetY += dy;
       draw();
     }, { passive: true });
-
     window.addEventListener("touchend", (e) => {
       const now = Date.now();
       const rect = canvas.getBoundingClientRect();
@@ -1460,7 +1418,6 @@
             lastTapCell.x === cell.x &&
             lastTapCell.y === cell.y
           ) {
-            // ダブルタップ
             handleCellDoubleAction(cell);
             lastTapTime = 0;
             lastTapCell = null;
@@ -1477,7 +1434,6 @@
       canvas.classList.remove("dragging");
     });
 
-    // ===== 補助関数 =====
     function zoomAt(mx, my, zoomDelta) {
       let newScale = scale + zoomDelta * scale;
       newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, newScale));
@@ -1489,7 +1445,6 @@
       offsetY += (worldAfter.y - worldBefore.y) * scale;
       draw();
     }
-
     zoomInBtn.addEventListener("click", () => {
       const rect = canvas.getBoundingClientRect();
       zoomAt(rect.width / 2, rect.height / 2, 0.2);
@@ -1503,10 +1458,7 @@
       sidebarEl.classList.toggle("collapsed");
       toggleSidebarBtn.textContent = sidebarEl.classList.contains("collapsed") ? "＋" : "－";
     });
-
-    togglePopupsCheckbox.addEventListener("change", () => {
-      draw();
-    });
+    togglePopupsCheckbox.addEventListener("change", draw);
     togglePopupsLabelBtn.addEventListener("click", () => {
       togglePopupsCheckbox.checked = !togglePopupsCheckbox.checked;
       draw();
@@ -1542,7 +1494,6 @@
       updateBaseListUI();
       draw();
     }
-
     function hexToRgba(hex, alpha) {
       let c = hex.replace("#", "");
       if (c.length === 3) {
