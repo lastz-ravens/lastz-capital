@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Hex Map (Desert & Grass + Bases / Firestore)</title>
+  <title>Hex Map (Desert & Grass + Bases / Local)</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body {
@@ -184,6 +184,14 @@
       font-size: 11px;
       opacity: 0.9;
     }
+    .base-alliance-row {
+      font-size: 10px;
+      opacity: 0.9;
+      margin-top: 1px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
     .base-item-meta-row {
       display: flex;
       justify-content: space-between;
@@ -226,6 +234,11 @@
       .hint {
         font-size: 10px;
         max-width: 90%;
+        bottom: 60px;        /* HUD とかぶらないよう少し上に */
+      }
+      .hud {
+        bottom: 10px;
+        right: 10px;
       }
       .sidebar {
         width: calc(100% - 20px);
@@ -249,7 +262,7 @@
 
   <div class="sidebar">
     <div class="sidebar-header">
-      <div class="sidebar-title">基地一覧（リスト行ダブルクリックで編集）</div>
+      <div class="sidebar-title">基地一覧（行ダブルクリックで編集）</div>
       <div class="sidebar-actions">
         <button id="toggle-sidebar">－</button>
         <button id="export-btn">EX</button>
@@ -260,8 +273,8 @@
     <ul id="base-list"></ul>
     <div class="sidebar-note">
       ・マップ：空きマスをダブルクリックで基地追加 / 基地ドラッグで移動 / 基地ダブルクリックで名前変更 or 削除<br>
-      ・状態・レベル・サムネは Firestore に保存され、全端末で共有されます（ローカルにもバックアップ保存）<br>
-      ・エクスポートで JSON をダウンロード、インポートで読み込み
+      ・状態・レベル・所属同盟・アイコンはブラウザに自動保存されます（端末ごと）<br>
+      ・エクスポートで JSON をダウンロード、インポートで読み込み（他端末へ手動共有）
     </div>
   </div>
 
@@ -276,37 +289,8 @@
     …
   </div>
 
-  <!-- Firebase + Firestore + マップ処理 -->
-  <script type="module">
-    // ===== Firebase SDK =====
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
-    import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-analytics.js";
-    import {
-      getFirestore,
-      doc,
-      getDoc,
-      setDoc,
-      onSnapshot,
-      serverTimestamp
-    } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
-
-    // --- Firebase 設定 ---
-    const firebaseConfig = {
-      apiKey: "AIzaSyB_whPaNOu9Lw7i7-j14UgjFtwExB8aQvk",
-      authDomain: "hex-map-project.firebaseapp.com",
-      projectId: "hex-map-project",
-      storageBucket: "hex-map-project.firebasestorage.app",
-      messagingSenderId: "278586802948",
-      appId: "1:278586802948:web:31e51f369382bb859d0651",
-      measurementId: "G-NMY20PTQKM"
-    };
-
-    const firebaseApp = initializeApp(firebaseConfig);
-    getAnalytics(firebaseApp);
-    const db = getFirestore(firebaseApp);
-    const mapDocRef = doc(db, "maps", "globalMap"); // 共有用ドキュメント
-
-    // ===== DOM 取得 =====
+  <script>
+    // ===== DOM =====
     const canvas = document.getElementById("map-canvas");
     const ctx = canvas.getContext("2d");
     const zoomDisplay = document.getElementById("zoom-display");
@@ -331,8 +315,7 @@
 
     const EDGE_THICKNESS_WORLD = HEX_SIZE * 0.8;
 
-    // ローカルバックアップ用キー
-    const STORAGE_KEY = "hexmap_bases_firestore_backup";
+    const STORAGE_KEY = "hexmap_bases_local_v1"; // ローカル専用
 
     let scale = 0.35;
     let offsetX = 0;
@@ -345,18 +328,14 @@
     let lastMouseY = 0;
     let selectedCell = null;
 
-    // 基地ドラッグ用
     let draggingBaseId = null;
     let lastDragCell = null;
 
-    // 基地一覧 {id, name, cells:[{x,y}], anchor:{x,y}, level, status, thumb}
+    // 基地: {id, name, cells:[{x,y}], anchor:{x,y}, level, status, allianceName, allianceIcon}
     const bases = [];
     let baseCount = 0;
 
-    // Firestoreエラーを何度も alert しないようにするフラグ
-    let firestoreErrorShown = false;
-
-    // 首都中心と表示半径（首都±50マス）
+    // 首都中心±50
     const CAPITAL_CENTER_X = 500;
     const CAPITAL_CENTER_Y = 500;
     const VIEW_RADIUS = 50;
@@ -366,7 +345,7 @@
     const VIEW_MIN_Y = Math.max(0, CAPITAL_CENTER_Y - VIEW_RADIUS);
     const VIEW_MAX_Y = Math.min(GRID_MAX_Y, CAPITAL_CENTER_Y + VIEW_RADIUS);
 
-    // ===== 砂漠エリア（多角形）=====
+    // 砂漠エリア多角形
     const desertVerticesGrid = [
       { x: 482, y: 465 },
       { x: 465, y: 500 },
@@ -376,7 +355,7 @@
       { x: 517, y: 465 }
     ];
 
-    // ===== 配置不可（赤）メイン六角 =====
+    // 配置不可メイン六角
     const blockedVerticesGrid = [
       { x: 483, y: 500 },
       { x: 491, y: 517 },
@@ -386,7 +365,6 @@
       { x: 491, y: 483 }
     ];
 
-    // 追加の単体配置不可セル
     const extraBlockedCells = [
       { x: 489, y: 515 }, { x: 490, y: 516 }, { x: 490, y: 517 },
       { x: 491, y: 518 }, { x: 491, y: 585 }, { x: 492, y: 518 },
@@ -407,7 +385,7 @@
     let desertPolygonWorld = [];
     let blockedPolygonWorld = [];
 
-    // 基地の形（axial座標 半径1）
+    // 基地クラスター（axial 半径1）
     const basePatternAxial = [
       { dq: 0, dr: 0 },
       { dq: 1, dr: 0 },
@@ -418,7 +396,6 @@
       { dq: 1, dr: -1 }
     ];
 
-    // odd-r <-> axial
     function oddrToAxial(col, row) {
       const q = col - (row - (row & 1)) / 2;
       const r = row;
@@ -430,48 +407,44 @@
       return { x: col, y: row };
     }
 
-    // ===== スマホ/PC で説明文切り替え =====
+    // スマホ/PC ヒント切り替え
     function updateHintText() {
       const isMobile = window.innerWidth <= 768;
       if (isMobile) {
         hintTextEl.textContent =
-          "📱 1本指ドラッグで移動 / ピンチイン・アウトでズーム / タップでセル選択 / 空きマスをダブルタップで基地追加（機種によっては長押し＋タップ） / 基地をドラッグで移動 / 左上ボタンで基地一覧を開閉";
+          "📱 1本指ドラッグで移動 / ピンチでズーム / タップでセル選択 / 空きマスをダブルタップ（機種によっては長押し＋タップ）で基地追加 / 基地ドラッグで移動 / 左上ボタンで基地一覧を開閉";
       } else {
         hintTextEl.textContent =
-          "🖱 ドラッグ移動 / ホイールズーム / クリックで X,Y 選択 / 空きマスをダブルクリックで基地追加 / 基地マスをダブルクリックで名前変更 or 削除 / 基地をドラッグで移動 / 左上ボタンで基地一覧を開閉";
+          "🖱 ドラッグ移動 / ホイールズーム / クリックで X,Y 選択 / 空きマスをダブルクリックで基地追加 / 基地ダブルクリックで名前変更 or 削除 / 基地ドラッグで移動 / 左上ボタンで基地一覧を開閉";
       }
     }
     window.addEventListener("resize", updateHintText);
     updateHintText();
 
-    // ===== 高解像度対応付き resizeCanvas =====
+    // 高解像度対応付き resize
     function resizeCanvas() {
       const rect = canvas.getBoundingClientRect();
       const dpr = window.devicePixelRatio || 1;
-
       canvas.width  = rect.width * dpr;
       canvas.height = rect.height * dpr;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
       if (!resizeCanvas.initialized) {
         resizeCanvas.initialized = true;
-
-        const midX = CAPITAL_CENTER_X;
-        const midY = CAPITAL_CENTER_Y;
-        const midWorld = gridToWorld(midX, midY);
-
+        const midWorld = gridToWorld(CAPITAL_CENTER_X, CAPITAL_CENTER_Y);
         offsetX = rect.width / 2 - midWorld.x * scale;
         offsetY = rect.height / 2 - midWorld.y * scale;
-
         desertPolygonWorld  = desertVerticesGrid.map(v => gridToWorld(v.x, v.y));
         blockedPolygonWorld = blockedVerticesGrid.map(v => gridToWorld(v.x, v.y));
+        loadBases();
+        updateBaseListUI();
       }
       draw();
     }
     window.addEventListener("resize", resizeCanvas);
     resizeCanvas();
 
-    // ===== 座標変換 =====
+    // 座標変換
     function gridToWorld(gx, gy) {
       const wx = HEX_HORIZ_SPACING * (gx + (gy & 1) * 0.5);
       const wy = HEX_VERT_SPACING * gy;
@@ -493,7 +466,7 @@
       return { x: gx, y: gy };
     }
 
-    // ===== 幾何ユーティリティ =====
+    // 幾何
     function pointInPolygon(point, polygon) {
       let inside = false;
       for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
@@ -531,7 +504,7 @@
       return minD;
     }
 
-    // 配置不可セル判定
+    // 配置不可
     function isBlockedCell(gx, gy) {
       for (const c of extraBlockedCells) {
         if (c.x === gx && c.y === gy) return true;
@@ -542,7 +515,7 @@
       return inside || dist <= EDGE_THICKNESS_WORLD;
     }
 
-    // ===== 基地ユーティリティ =====
+    // 基地ユーティリティ
     function findBaseAtCell(gx, gy) {
       return bases.find(b => b.cells.some(c => c.x === gx && c.y === gy)) || null;
     }
@@ -569,10 +542,12 @@
       if (idx !== -1) {
         bases.splice(idx, 1);
         saveBases();
+        updateBaseListUI();
+        draw();
       }
     }
 
-    // ===== 保存・同期（Firestore + ローカルバックアップ） =====
+    // 保存・読み込み（ローカルのみ）
     function makeSerializableData() {
       return {
         bases: bases.map(b => ({
@@ -581,101 +556,48 @@
           anchor: b.anchor,
           level: b.level ?? null,
           status: b.status || "不明",
-          thumb: b.thumb || null
+          allianceName: b.allianceName || "",
+          allianceIcon: b.allianceIcon || ""
         }))
       };
     }
-
-    function saveLocalBackup() {
+    function saveBases() {
       const data = makeSerializableData();
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
       } catch (e) {
-        console.warn("localStorage backup error:", e);
+        console.warn("saveBases error:", e);
       }
     }
-
-    function loadLocalBackup() {
+    function loadBases() {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) return;
       try {
         const data = JSON.parse(raw);
-        applyBasesFromRemote(data);
-      } catch (e) {
-        console.warn("local backup parse error:", e);
-      }
-    }
-
-    async function saveBases() {
-      const data = makeSerializableData();
-      // 先にローカルバックアップ
-      saveLocalBackup();
-
-      data.updatedAt = serverTimestamp();
-      try {
-        await setDoc(mapDocRef, data);
-      } catch (e) {
-        console.warn("saveBases Firestore error:", e);
-        if (!firestoreErrorShown) {
-          firestoreErrorShown = true;
-          alert("Firebase Firestore への保存に失敗しました。\nネットワークまたはセキュリティルールを確認してください。\n（この端末にはローカルバックアップ済み）");
-        }
-      }
-    }
-
-    function applyBasesFromRemote(data) {
-      if (!data || !Array.isArray(data.bases)) return;
-      bases.length = 0;
-      data.bases.forEach(rec => {
-        if (!rec.anchor) return;
-        const anchor = rec.anchor;
-        const cells = createBaseCellsForAnchor(anchor.x, anchor.y, null);
-        if (!cells) return;
-        bases.push({
-          id: rec.id || (Date.now().toString(36) + Math.random().toString(36).slice(2,7)),
-          name: rec.name || "基地",
-          cells,
-          anchor,
-          level: rec.level ?? null,
-          status: rec.status || "不明",
-          thumb: rec.thumb || null
+        if (!data || !Array.isArray(data.bases)) return;
+        bases.length = 0;
+        data.bases.forEach(rec => {
+          if (!rec.anchor) return;
+          const cells = createBaseCellsForAnchor(rec.anchor.x, rec.anchor.y, null);
+          if (!cells) return;
+          bases.push({
+            id: rec.id || (Date.now().toString(36) + Math.random().toString(36).slice(2,7)),
+            name: rec.name || "基地",
+            cells,
+            anchor: rec.anchor,
+            level: rec.level ?? null,
+            status: rec.status || "不明",
+            allianceName: rec.allianceName || "",
+            allianceIcon: rec.allianceIcon || ""
+          });
         });
-      });
-      baseCount = bases.length;
-      updateBaseListUI();
-      draw();
+        baseCount = bases.length;
+      } catch (e) {
+        console.warn("loadBases error:", e);
+      }
     }
 
-    // 起動時：Firestore → ダメならローカルバックアップ
-    (async () => {
-      try {
-        const snap = await getDoc(mapDocRef);
-        if (snap.exists()) {
-          applyBasesFromRemote(snap.data());
-        } else {
-          // ドキュメントが無い場合はローカルバックアップを試す
-          loadLocalBackup();
-        }
-      } catch (e) {
-        console.warn("initial getDoc error:", e);
-        loadLocalBackup();
-      }
-
-      // リアルタイム購読（エラー時はローカルバックアップへ）
-      onSnapshot(
-        mapDocRef,
-        (snap) => {
-          if (!snap.exists()) return;
-          applyBasesFromRemote(snap.data());
-        },
-        (err) => {
-          console.warn("onSnapshot error:", err);
-          loadLocalBackup();
-        }
-      );
-    })();
-
-    // ===== インポート／エクスポート =====
+    // インポート／エクスポート
     function importBasesFromData(data) {
       if (!data || !Array.isArray(data.bases)) {
         alert("インポートするJSONの形式が不正です。");
@@ -686,23 +608,24 @@
       bases.length = 0;
       data.bases.forEach(rec => {
         if (!rec.anchor) return;
-        const anchor = rec.anchor;
-        const cells = createBaseCellsForAnchor(anchor.x, anchor.y, null);
+        const cells = createBaseCellsForAnchor(rec.anchor.x, rec.anchor.y, null);
         if (!cells) return;
         bases.push({
           id: rec.id || (Date.now().toString(36) + Math.random().toString(36).slice(2,7)),
           name: rec.name || "基地",
           cells,
-          anchor,
+          anchor: rec.anchor,
           level: rec.level ?? null,
           status: rec.status || "不明",
-          thumb: rec.thumb || null
+          allianceName: rec.allianceName || "",
+          allianceIcon: rec.allianceIcon || ""
         });
       });
       baseCount = bases.length;
-      saveBases(); // Firestore + ローカルに反映
+      saveBases();
+      updateBaseListUI();
+      draw();
     }
-
     function exportBasesToFile() {
       const data = makeSerializableData();
       const json = JSON.stringify(data, null, 2);
@@ -716,7 +639,6 @@
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     }
-
     function handleImportFile(e) {
       const file = e.target.files[0];
       if (!file) return;
@@ -739,18 +661,28 @@
     importBtn.addEventListener("click", () => importFileInput.click());
     importFileInput.addEventListener("change", handleImportFile);
 
-    // ===== 折りたたみボタン =====
+    // サイドバー折りたたみ
     toggleSidebarBtn.addEventListener("click", () => {
       const collapsed = sidebarEl.classList.toggle("collapsed");
       toggleSidebarBtn.textContent = collapsed ? "＋" : "－";
     });
 
-    // ===== 基地メタ編集 =====
+    // 基地メタ編集（リストから）
     function editBaseMeta(base) {
       if (!base) return;
+
       let newName = prompt("基地名（空欄で変更なし）", base.name);
       if (newName !== null && newName.trim() !== "") {
         base.name = newName.trim();
+      }
+
+      let newAllianceName = prompt(
+        "所属同盟名（空欄でリセット / キャンセルで変更なし）",
+        base.allianceName || ""
+      );
+      if (newAllianceName !== null) {
+        newAllianceName = newAllianceName.trim();
+        base.allianceName = newAllianceName;
       }
 
       let newLevel = prompt(
@@ -762,18 +694,21 @@
         if (!isNaN(num)) base.level = num;
       }
 
-      let newThumb = prompt(
-        "サムネイル画像URL（空欄で削除 / 変更なしならキャンセル）",
-        base.thumb || ""
+      let newIcon = prompt(
+        "所属同盟アイコンの画像URL（空欄で削除 / キャンセルで変更なし）",
+        base.allianceIcon || ""
       );
-      if (newThumb !== null) {
-        newThumb = newThumb.trim();
-        base.thumb = newThumb === "" ? null : newThumb;
+      if (newIcon !== null) {
+        newIcon = newIcon.trim();
+        base.allianceIcon = newIcon === "" ? "" : newIcon;
       }
 
       saveBases();
+      updateBaseListUI();
+      draw();
     }
 
+    // マップ上での名前変更／削除
     function renameOrDeleteBase(base) {
       if (!base) return;
       let newName = prompt(
@@ -790,6 +725,8 @@
       }
       base.name = newName;
       saveBases();
+      updateBaseListUI();
+      draw();
     }
 
     function addBaseAtGrid(gx, gy) {
@@ -807,6 +744,13 @@
       }
       if (name.trim() === "") name = defaultName;
 
+      let allianceName = prompt(
+        "所属同盟名（なければ空欄のまま）",
+        ""
+      );
+      if (allianceName !== null) allianceName = allianceName.trim();
+      else allianceName = "";
+
       const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
       bases.push({
         id,
@@ -815,24 +759,27 @@
         anchor: { x: gx, y: gy },
         level: null,
         status: "不明",
-        thumb: null
+        allianceName,
+        allianceIcon: ""   // アイコンURLはリストから編集
       });
       saveBases();
+      updateBaseListUI();
+      draw();
     }
 
     function moveBaseToGrid(baseId, gx, gy) {
       const base = bases.find(b => b.id === baseId);
       if (!base) return;
-
       const cells = createBaseCellsForAnchor(gx, gy, baseId);
       if (!cells) return;
-
       base.cells = cells;
       base.anchor = { x: gx, y: gy };
       saveBases();
+      updateBaseListUI();
+      draw();
     }
 
-    // ===== 基地リストUI =====
+    // 基地リストUI
     function updateBaseListUI() {
       baseListEl.innerHTML = "";
       bases.forEach((b) => {
@@ -841,8 +788,10 @@
 
         const thumbDiv = document.createElement("div");
         thumbDiv.className = "base-item-thumb";
-        if (b.thumb) {
-          thumbDiv.style.backgroundImage = `url(${b.thumb})`;
+        if (b.allianceIcon) {
+          thumbDiv.style.backgroundImage = `url(${b.allianceIcon})`; // 同盟アイコン
+        } else {
+          thumbDiv.style.backgroundImage = "";
         }
 
         const infoDiv = document.createElement("div");
@@ -862,6 +811,12 @@
         nameRow.appendChild(nameSpan);
         nameRow.appendChild(levelSpan);
 
+        const allianceRow = document.createElement("div");
+        allianceRow.className = "base-alliance-row";
+        allianceRow.textContent = b.allianceName
+          ? `所属同盟: ${b.allianceName}`
+          : "所属同盟: なし";
+
         const metaRow = document.createElement("div");
         metaRow.className = "base-item-meta-row";
 
@@ -877,13 +832,13 @@
           const btn = document.createElement("button");
           btn.dataset.status = st;
           btn.textContent = st;
-          if (b.status === st) {
-            btn.classList.add("active");
-          }
+          if (b.status === st) btn.classList.add("active");
           btn.addEventListener("click", (e) => {
             e.stopPropagation();
             b.status = st;
             saveBases();
+            updateBaseListUI();
+            draw();
           });
           statusDiv.appendChild(btn);
         });
@@ -892,6 +847,7 @@
         metaRow.appendChild(statusDiv);
 
         infoDiv.appendChild(nameRow);
+        infoDiv.appendChild(allianceRow);
         infoDiv.appendChild(metaRow);
 
         li.appendChild(thumbDiv);
@@ -906,7 +862,7 @@
       });
     }
 
-    // ===== 描画ヘルパー =====
+    // 描画ヘルパー
     function drawRoundedRect(ctx, x, y, w, h, r) {
       const radius = Math.min(r, w / 2, h / 2);
       ctx.beginPath();
@@ -1067,6 +1023,7 @@
       ctx.stroke();
     }
 
+    // ★ マップ上の基地ラベル：サムネイルアイコン＋基地名＋状態＋座標
     function drawBaseLabels() {
       ctx.save();
 
@@ -1090,19 +1047,20 @@
         const statusWidth = ctx.measureText(statusLine).width;
         const coordWidth  = ctx.measureText(coordText).width;
 
-        const textWidth = Math.max(nameWidth, statusWidth, coordWidth);
+        const thumbSize = lineHeight * 1.2; // 同盟アイコン枠
+        const textWidth = Math.max(nameWidth, statusWidth, coordWidth, thumbSize * 1.8);
 
-        const thumbSize = lineHeight * 1.8;
         const paddingX  = 6 * scale * 2;
         const paddingY  = 4 * scale * 2;
 
-        const panelWidth  = Math.max(textWidth, thumbSize) + paddingX * 2;
+        const panelWidth  = textWidth + paddingX * 2;
         const panelHeight = paddingY * 2 + thumbSize + 4 + lineHeight * 3;
 
         const offsetAboveHex = HEX_SIZE * scale * 1.6;
         const panelX = screen.x - panelWidth / 2;
         const panelY = screen.y - offsetAboveHex - panelHeight;
 
+        // パネル背景
         ctx.globalAlpha = 0.92;
         ctx.fillStyle = "rgba(5, 6, 8, 0.92)";
         drawRoundedRect(ctx, panelX, panelY, panelWidth, panelHeight, 6);
@@ -1114,35 +1072,44 @@
         drawRoundedRect(ctx, panelX, panelY, panelWidth, panelHeight, 6);
         ctx.stroke();
 
-        ctx.textAlign = "center";
+        // 中身
+        ctx.textAlign = "left";
         ctx.textBaseline = "top";
         ctx.font = `${baseFontSize}px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
 
         let cursorY = panelY + paddingY;
 
-        const thumbX = screen.x - thumbSize / 2;
-        const thumbY = cursorY;
+        // 1行目: 左にサムネイルアイコン枠（同盟アイコン用）
+        const iconX = panelX + paddingX;
+        const iconY = cursorY;
 
         ctx.fillStyle = "rgba(255,255,255,0.10)";
-        drawRoundedRect(ctx, thumbX, thumbY, thumbSize, thumbSize, 4);
+        drawRoundedRect(ctx, iconX, iconY, thumbSize, thumbSize, 3);
         ctx.fill();
 
+        // アイコン自体は Canvas には画像描画せず、頭文字か「-」だけ（フリーズ対策）
+        const allianceInitial = b.allianceName
+          ? b.allianceName.trim().charAt(0)
+          : "-";
         ctx.fillStyle = "rgba(255,255,255,0.85)";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
-        const initial = (nameText && nameText.trim().length > 0)
-          ? nameText.trim().charAt(0)
-          : "?";
-        ctx.fillText(initial, screen.x, thumbY + thumbSize / 2);
+        ctx.fillText(
+          allianceInitial,
+          iconX + thumbSize / 2,
+          iconY + thumbSize / 2
+        );
 
         cursorY += thumbSize + 4;
 
+        // 2行目: 基地名
         ctx.textAlign = "center";
         ctx.textBaseline = "top";
         ctx.fillStyle = "rgba(255,255,255,0.96)";
         ctx.fillText(nameText, screen.x, cursorY);
         cursorY += lineHeight;
 
+        // 3行目: 状態＋レベル
         ctx.fillStyle =
           statusText === "参加"
             ? "rgba(150, 255, 190, 0.96)"
@@ -1152,6 +1119,7 @@
         ctx.fillText(statusLine, screen.x, cursorY);
         cursorY += lineHeight;
 
+        // 4行目: 座標
         ctx.fillStyle = "rgba(210, 230, 255, 0.96)";
         ctx.fillText(coordText, screen.x, cursorY);
       });
