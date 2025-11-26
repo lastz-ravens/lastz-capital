@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>284 Capital</title>
+  <title>Hex Map (Desert & Grass + Bases / Firestore)</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body {
@@ -28,7 +28,7 @@
       bottom: 10px;
       padding: 6px 10px;
       border-radius: 999px;
-      background: rgba(0, 0, 0, .65);
+      background: rgba(0, 0, 0, .75);
       backdrop-filter: blur(10px);
       font-size: 11px;
       display: flex;
@@ -46,10 +46,10 @@
       bottom: 10px;
       padding: 6px 10px;
       border-radius: 999px;
-      background: rgba(0, 0, 0, .65);
+      background: rgba(0, 0, 0, .75);
       backdrop-filter: blur(10px);
       font-size: 11px;
-      opacity: .8;
+      opacity: .85;
       pointer-events: none;
       z-index: 10;
       max-width: 520px;
@@ -63,19 +63,15 @@
       width: 270px;
       padding: 10px;
       border-radius: 16px;
-      background: rgba(0, 0, 0, 0.85);
-      backdrop-filter: blur(14px);
+      background: rgba(5, 6, 8, 0.96);
+      backdrop-filter: blur(16px);
       font-size: 12px;
       z-index: 20;
       pointer-events: auto;
       max-height: calc(100% - 20px);
       display: flex;
       flex-direction: column;
-      transition: transform 0.2s ease, opacity 0.2s ease;
-    }
-    .sidebar.collapsed {
-      transform: translateY(-8px) translateX(-5px);
-      opacity: 0.2;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
     }
     .sidebar-header {
       display: flex;
@@ -88,7 +84,7 @@
       font-size: 11px;
       text-transform: uppercase;
       letter-spacing: 0.06em;
-      opacity: 0.75;
+      opacity: 0.85;
     }
     .sidebar-actions {
       display: flex;
@@ -102,21 +98,12 @@
       padding: 2px 6px;
       font-size: 10px;
       cursor: pointer;
-      background: rgba(255,255,255,0.1);
+      background: rgba(255,255,255,0.14);
       color: #f5f5f5;
       white-space: nowrap;
     }
     .sidebar-actions button:hover {
-      background: rgba(255,255,255,0.2);
-    }
-    .sidebar-toggle {
-      border-radius: 999px;
-      padding: 2px 6px;
-      font-size: 10px;
-      cursor: pointer;
-      background: rgba(255,255,255,0.12);
-      color: #f5f5f5;
-      border: none;
+      background: rgba(255,255,255,0.26);
     }
 
     #base-list {
@@ -129,7 +116,7 @@
     .sidebar-note {
       margin-top: 6px;
       font-size: 10px;
-      opacity: 0.7;
+      opacity: 0.75;
     }
 
     #base-list li.base-item {
@@ -137,24 +124,24 @@
       gap: 6px;
       padding: 5px 6px;
       border-radius: 10px;
-      background: rgba(255,255,255,0.04);
+      background: rgba(255,255,255,0.06);
       margin-bottom: 4px;
-      border: 1px solid transparent;
+      border: 1px solid rgba(255,255,255,0.12);
       align-items: center;
     }
     #base-list li.base-item:hover {
-      background: rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.10);
     }
 
     .base-item-thumb {
       width: 40px;
       height: 40px;
       border-radius: 8px;
-      background-color: rgba(255,255,255,0.06);
+      background-color: rgba(255,255,255,0.08);
       background-size: cover;
       background-position: center;
       flex-shrink: 0;
-      border: 1px solid rgba(255,255,255,0.2);
+      border: 1px solid rgba(255,255,255,0.3);
     }
 
     .base-item-info {
@@ -176,7 +163,7 @@
     }
     .base-level {
       font-size: 11px;
-      opacity: 0.85;
+      opacity: 0.9;
     }
     .base-item-meta-row {
       display: flex;
@@ -187,7 +174,7 @@
     }
     .base-coord {
       font-size: 10px;
-      opacity: 0.7;
+      opacity: 0.9;
     }
     .base-status {
       display: flex;
@@ -199,20 +186,20 @@
       padding: 1px 5px;
       font-size: 10px;
       cursor: pointer;
-      background: rgba(255,255,255,0.06);
+      background: rgba(255,255,255,0.10);
       color: #f5f5f5;
       white-space: nowrap;
     }
     .base-status button.active[data-status="参加"] {
-      background: rgba(80, 220, 140, 0.9);
+      background: rgba(80, 220, 140, 0.95);
       color: #021108;
     }
     .base-status button.active[data-status="不参加"] {
-      background: rgba(240, 90, 90, 0.9);
+      background: rgba(240, 90, 90, 0.95);
       color: #250202;
     }
     .base-status button.active[data-status="不明"] {
-      background: rgba(255, 210, 90, 0.9);
+      background: rgba(255, 210, 90, 0.95);
       color: #251a02;
     }
 
@@ -241,21 +228,19 @@
 <body>
   <canvas id="map-canvas"></canvas>
 
-  <div class="sidebar" id="sidebar">
+  <div class="sidebar">
     <div class="sidebar-header">
       <div class="sidebar-title">基地一覧（リスト行ダブルクリックで編集）</div>
       <div class="sidebar-actions">
         <button id="export-btn">エクスポート</button>
         <button id="import-btn">インポート</button>
-        <button class="sidebar-toggle" id="sidebar-toggle">▲</button>
         <input type="file" id="import-file" accept="application/json" style="display:none" />
       </div>
     </div>
     <ul id="base-list"></ul>
-    <div class="sidebar-note" id="sidebar-note">
-      ・PC：空きマスをダブルクリックで基地追加 / 基地ドラッグで移動 / 基地ダブルクリックで名前変更 or 削除<br>
-      ・スマホ：基地追加は空きマスを<strong>長押し</strong>、ドラッグで移動（1本指）<br>
-      ・状態・レベル・サムネはブラウザに自動保存（localStorage）<br>
+    <div class="sidebar-note">
+      ・マップ：空きマスをダブルクリックで基地追加 / 基地ドラッグで移動 / 基地ダブルクリックで名前変更 or 削除<br>
+      ・状態・レベル・サムネは Firestore に保存され、全端末で共有されます<br>
       ・エクスポートで JSON をダウンロード、インポートで読み込み
     </div>
   </div>
@@ -267,17 +252,25 @@
     <span class="value" id="cell-display">—</span>
   </div>
 
-  <div class="hint" id="hint">
-    🖱 PC：ドラッグで移動 / ホイールでズーム / クリックで X,Y 選択 / 空きマスをダブルクリックで基地追加 / 基地マスをダブルクリックで名前変更 or 削除 / 基地ドラッグで移動<br>
-    📱 スマホ：1本指ドラッグで移動 / ピンチでズーム / 空きマスを<strong>長押し</strong>で基地追加 / 基地をドラッグで移動<br>
-    （砂漠エリア・芝生エリア / 固定オブジェクト名 / 基地ラベルの上下に座標と参加状態を表示）
+  <div class="hint" id="hint-text">
+    …
   </div>
 
+  <!-- ここから全部 type="module" にして Firebase + Firestore + マップ処理を統合 -->
   <script type="module">
-    // ===== Firebase SDK 初期化 =====
+    // ===== Firebase SDK =====
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
     import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-analytics.js";
+    import {
+      getFirestore,
+      doc,
+      getDoc,
+      setDoc,
+      onSnapshot,
+      serverTimestamp
+    } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
+    // --- Firebase 設定（そのまま使う） ---
     const firebaseConfig = {
       apiKey: "AIzaSyB_whPaNOu9Lw7i7-j14UgjFtwExB8aQvk",
       authDomain: "hex-map-project.firebaseapp.com",
@@ -288,10 +281,12 @@
       measurementId: "G-NMY20PTQKM"
     };
 
-    const app = initializeApp(firebaseConfig);
-    const analytics = getAnalytics(app);
+    const firebaseApp = initializeApp(firebaseConfig);
+    getAnalytics(firebaseApp);
+    const db = getFirestore(firebaseApp);
+    const mapDocRef = doc(db, "maps", "globalMap"); // ★ ここが共有先
 
-    // ===== ここから元のアプリコード =====
+    // ===== DOM 取得 =====
     const canvas = document.getElementById("map-canvas");
     const ctx = canvas.getContext("2d");
     const zoomDisplay = document.getElementById("zoom-display");
@@ -300,8 +295,7 @@
     const exportBtn = document.getElementById("export-btn");
     const importBtn = document.getElementById("import-btn");
     const importFileInput = document.getElementById("import-file");
-    const sidebar = document.getElementById("sidebar");
-    const sidebarToggle = document.getElementById("sidebar-toggle");
+    const hintTextEl = document.getElementById("hint-text");
 
     // ===== 基本設定 =====
     const HEX_SIZE = 20;
@@ -314,7 +308,6 @@
     const HEX_HORIZ_SPACING = HEX_WIDTH;
 
     const EDGE_THICKNESS_WORLD = HEX_SIZE * 0.8;
-    const STORAGE_KEY = "hexmap_bases_v5";
 
     let scale = 0.35;
     let offsetX = 0;
@@ -331,16 +324,11 @@
     let draggingBaseId = null;
     let lastDragCell = null;
 
-    // 長押し（スマホ）で基地追加用
-    let touchHoldTimer = null;
-    let touchHoldCell = null;
-    const TOUCH_HOLD_MS = 600;
-
     // 基地一覧 {id, name, cells:[{x,y}], anchor:{x,y}, level, status, thumb}
     const bases = [];
     let baseCount = 0;
 
-    // ★ 首都中心と表示半径（首都±50マス）
+    // 首都中心と表示半径（首都±50マス）
     const CAPITAL_CENTER_X = 500;
     const CAPITAL_CENTER_Y = 500;
     const VIEW_RADIUS = 50;
@@ -350,7 +338,7 @@
     const VIEW_MIN_Y = Math.max(0, CAPITAL_CENTER_Y - VIEW_RADIUS);
     const VIEW_MAX_Y = Math.min(GRID_MAX_Y, CAPITAL_CENTER_Y + VIEW_RADIUS);
 
-    // ===== 砂漠エリア（元・首都エリアの多角形）=====
+    // ===== 砂漠エリア（多角形）=====
     const desertVerticesGrid = [
       { x: 482, y: 465 },
       { x: 465, y: 500 },
@@ -370,58 +358,30 @@
       { x: 491, y: 483 }
     ];
 
-    // ★ 追加の単体配置不可セル（赤）
+    // 追加の単体配置不可セル
     const extraBlockedCells = [
-      { x: 489, y: 515 },
-      { x: 490, y: 516 },
-      { x: 490, y: 517 },
-      { x: 491, y: 518 },
-      { x: 491, y: 585 },
-      { x: 492, y: 518 },
-      { x: 493, y: 518 },
-      { x: 494, y: 518 },
-      { x: 489, y: 516 },
-      { x: 489, y: 517 },
-      { x: 490, y: 518 },
-      { x: 490, y: 519 },
-      { x: 491, y: 519 },
-      { x: 492, y: 519 },
-      { x: 493, y: 519 },
-      { x: 517, y: 502 },
-      { x: 517, y: 501 },
-      { x: 517, y: 502 },
-      { x: 518, y: 500 },
-      { x: 518, y: 499 },
-      { x: 518, y: 498 },
-      { x: 517, y: 497 },
-      { x: 517, y: 496 },
-      { x: 517, y: 499 },
-      { x: 517, y: 498 },
-      { x: 516, y: 497 },
-      { x: 516, y: 496 },
-      { x: 489, y: 485 },
-      { x: 489, y: 484 },
-      { x: 489, y: 483 },
-      { x: 490, y: 482 },
-      { x: 490, y: 484 },
-      { x: 490, y: 483 },
-      { x: 491, y: 482 },
-      { x: 491, y: 481 },
-      { x: 492, y: 482 },
-      { x: 492, y: 481 },
-      { x: 493, y: 482 },
-      { x: 494, y: 482 },
-      { x: 490, y: 481 },
-      { x: 493, y: 481 },
-      { x: 494, y: 482 }
+      { x: 489, y: 515 }, { x: 490, y: 516 }, { x: 490, y: 517 },
+      { x: 491, y: 518 }, { x: 491, y: 585 }, { x: 492, y: 518 },
+      { x: 493, y: 518 }, { x: 494, y: 518 }, { x: 489, y: 516 },
+      { x: 489, y: 517 }, { x: 490, y: 518 }, { x: 490, y: 519 },
+      { x: 491, y: 519 }, { x: 492, y: 519 }, { x: 493, y: 519 },
+      { x: 517, y: 502 }, { x: 517, y: 501 }, { x: 517, y: 502 },
+      { x: 518, y: 500 }, { x: 518, y: 499 }, { x: 518, y: 498 },
+      { x: 517, y: 497 }, { x: 517, y: 496 }, { x: 517, y: 499 },
+      { x: 517, y: 498 }, { x: 516, y: 497 }, { x: 516, y: 496 },
+      { x: 489, y: 485 }, { x: 489, y: 484 }, { x: 489, y: 483 },
+      { x: 490, y: 482 }, { x: 490, y: 484 }, { x: 490, y: 483 },
+      { x: 491, y: 482 }, { x: 491, y: 481 }, { x: 492, y: 482 },
+      { x: 492, y: 481 }, { x: 493, y: 482 }, { x: 494, y: 482 },
+      { x: 490, y: 481 }, { x: 493, y: 481 }, { x: 494, y: 482 }
     ];
 
     let desertPolygonWorld = [];
     let blockedPolygonWorld = [];
 
-    // ===== 基地の形（axial座標で半径1クラスター＝7マス）=====
+    // 基地の形（axial座標 半径1）
     const basePatternAxial = [
-      { dq: 0, dr: 0 },   // 中央
+      { dq: 0, dr: 0 },
       { dq: 1, dr: 0 },
       { dq: 0, dr: 1 },
       { dq: -1, dr: 1 },
@@ -430,7 +390,7 @@
       { dq: 1, dr: -1 }
     ];
 
-    // odd-r <-> axial 変換
+    // odd-r <-> axial
     function oddrToAxial(col, row) {
       const q = col - (row - (row & 1)) / 2;
       const r = row;
@@ -442,10 +402,28 @@
       return { x: col, y: row };
     }
 
+    // ===== スマホ/PC で説明文切り替え =====
+    function updateHintText() {
+      const isMobile = window.innerWidth <= 768;
+      if (isMobile) {
+        hintTextEl.textContent =
+          "📱 1本指ドラッグで移動 / ピンチイン・アウトでズーム / タップでセル選択 / 空きマスをダブルタップで基地追加（機種によっては長押し＋タップ） / 基地をドラッグで移動 / 基地ラベルに状態・レベル・座標を表示";
+      } else {
+        hintTextEl.textContent =
+          "🖱 ドラッグ移動 / ホイールズーム / クリックで X,Y 選択 / 空きマスをダブルクリックで基地追加 / 基地マスをダブルクリックで名前変更 or 削除 / 基地をドラッグで移動（砂漠エリア・芝生エリア / 座標と参加状態は基地の上下に表示）";
+      }
+    }
+    window.addEventListener("resize", updateHintText);
+    updateHintText();
+
+    // ===== 高解像度対応付き resizeCanvas =====
     function resizeCanvas() {
       const rect = canvas.getBoundingClientRect();
-      canvas.width = rect.width;
-      canvas.height = rect.height;
+      const dpr = window.devicePixelRatio || 1;
+
+      canvas.width  = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
       if (!resizeCanvas.initialized) {
         resizeCanvas.initialized = true;
@@ -453,14 +431,12 @@
         const midX = CAPITAL_CENTER_X;
         const midY = CAPITAL_CENTER_Y;
         const midWorld = gridToWorld(midX, midY);
-        offsetX = canvas.width / 2 - midWorld.x * scale;
-        offsetY = canvas.height / 2 - midWorld.y * scale;
 
-        desertPolygonWorld = desertVerticesGrid.map(v => gridToWorld(v.x, v.y));
+        offsetX = rect.width / 2 - midWorld.x * scale;
+        offsetY = rect.height / 2 - midWorld.y * scale;
+
+        desertPolygonWorld  = desertVerticesGrid.map(v => gridToWorld(v.x, v.y));
         blockedPolygonWorld = blockedVerticesGrid.map(v => gridToWorld(v.x, v.y));
-
-        loadBases();
-        updateBaseListUI();
       }
       draw();
     }
@@ -473,15 +449,12 @@
       const wy = HEX_VERT_SPACING * gy;
       return { x: wx, y: wy };
     }
-
     function worldToScreen(wx, wy) {
       return { x: wx * scale + offsetX, y: wy * scale + offsetY };
     }
-
     function screenToWorld(sx, sy) {
       return { x: (sx - offsetX) / scale, y: (sy - offsetY) / scale };
     }
-
     function screenToGrid(sx, sy) {
       const w = screenToWorld(sx, sy);
       let gy = Math.round(w.y / HEX_VERT_SPACING);
@@ -505,7 +478,6 @@
       }
       return inside;
     }
-
     function pointToSegmentDistance(p, a, b) {
       const vx = b.x - a.x;
       const vy = b.y - a.y;
@@ -520,7 +492,6 @@
       const projy = a.y + t * vy;
       return Math.hypot(p.x - projx, p.y - projy);
     }
-
     function distanceToPolygonEdges(p, polygon) {
       let minD = Infinity;
       for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
@@ -532,7 +503,7 @@
       return minD;
     }
 
-    // 配置不可セルかどうか
+    // 配置不可セル判定
     function isBlockedCell(gx, gy) {
       for (const c of extraBlockedCells) {
         if (c.x === gx && c.y === gy) return true;
@@ -543,11 +514,10 @@
       return inside || dist <= EDGE_THICKNESS_WORLD;
     }
 
-    // ===== 基地関連ユーティリティ =====
+    // ===== 基地ユーティリティ =====
     function findBaseAtCell(gx, gy) {
       return bases.find(b => b.cells.some(c => c.x === gx && c.y === gy)) || null;
     }
-
     function createBaseCellsForAnchor(gx, gy, ignoreBaseId = null) {
       const { q, r } = oddrToAxial(gx, gy);
       const cells = basePatternAxial.map(off => {
@@ -557,33 +527,24 @@
       });
 
       for (const c of cells) {
-        if (c.x < 0 || c.x > GRID_MAX_X || c.y < 0 || c.y > GRID_MAX_Y) {
-          return null;
-        }
-        if (isBlockedCell(c.x, c.y)) {
-          return null;
-        }
+        if (c.x < 0 || c.x > GRID_MAX_X || c.y < 0 || c.y > GRID_MAX_Y) return null;
+        if (isBlockedCell(c.x, c.y)) return null;
         for (const b of bases) {
           if (ignoreBaseId && b.id === ignoreBaseId) continue;
-          if (b.cells.some(d => d.x === c.x && d.y === c.y)) {
-            return null;
-          }
+          if (b.cells.some(d => d.x === c.x && d.y === c.y)) return null;
         }
       }
       return cells;
     }
-
     function deleteBaseById(id) {
       const idx = bases.findIndex(b => b.id === id);
       if (idx !== -1) {
         bases.splice(idx, 1);
         saveBases();
-        updateBaseListUI();
-        draw();
       }
     }
 
-    // ===== 保存・読み込み・インポート／エクスポート =====
+    // ===== Firestore 保存・同期 =====
     function makeSerializableData() {
       return {
         bases: bases.map(b => ({
@@ -597,42 +558,58 @@
       };
     }
 
-    function saveBases() {
+    async function saveBases() {
       const data = makeSerializableData();
+      data.updatedAt = serverTimestamp();
       try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        await setDoc(mapDocRef, data);
       } catch (e) {
-        console.warn("saveBases error:", e);
+        console.warn("saveBases Firestore error:", e);
       }
     }
 
-    function loadBases() {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return;
-      try {
-        const data = JSON.parse(raw);
-        if (!data || !Array.isArray(data.bases)) return;
-        data.bases.forEach(rec => {
-          if (!rec.anchor) return;
-          const anchor = rec.anchor;
-          const cells = createBaseCellsForAnchor(anchor.x, anchor.y, null);
-          if (!cells) return;
-          bases.push({
-            id: rec.id || (Date.now().toString(36) + Math.random().toString(36).slice(2,7)),
-            name: rec.name || "基地",
-            cells,
-            anchor,
-            level: rec.level ?? null,
-            status: rec.status || "不明",
-            thumb: rec.thumb || null
-          });
+    function applyBasesFromRemote(data) {
+      if (!data || !Array.isArray(data.bases)) return;
+      bases.length = 0;
+      data.bases.forEach(rec => {
+        if (!rec.anchor) return;
+        const anchor = rec.anchor;
+        const cells = createBaseCellsForAnchor(anchor.x, anchor.y, null);
+        if (!cells) return;
+        bases.push({
+          id: rec.id || (Date.now().toString(36) + Math.random().toString(36).slice(2,7)),
+          name: rec.name || "基地",
+          cells,
+          anchor,
+          level: rec.level ?? null,
+          status: rec.status || "不明",
+          thumb: rec.thumb || null
         });
-        baseCount = bases.length;
-      } catch (e) {
-        console.warn("loadBases error:", e);
-      }
+      });
+      baseCount = bases.length;
+      updateBaseListUI();
+      draw();
     }
 
+    // 起動時に Firestore から現在データ取得 + リアルタイム購読
+    (async () => {
+      try {
+        const snap = await getDoc(mapDocRef);
+        if (snap.exists()) {
+          applyBasesFromRemote(snap.data());
+        }
+      } catch (e) {
+        console.warn("initial getDoc error:", e);
+      }
+
+      onSnapshot(mapDocRef, (snap) => {
+        if (!snap.exists()) return;
+        // 自分が saveBases したときも飛んでくるが、そのまま上書きでOK
+        applyBasesFromRemote(snap.data());
+      });
+    })();
+
+    // ===== インポート／エクスポート =====
     function importBasesFromData(data) {
       if (!data || !Array.isArray(data.bases)) {
         alert("インポートするJSONの形式が不正です。");
@@ -657,9 +634,7 @@
         });
       });
       baseCount = bases.length;
-      saveBases();
-      updateBaseListUI();
-      draw();
+      saveBases(); // Firestore へ反映
     }
 
     function exportBasesToFile() {
@@ -694,17 +669,11 @@
       reader.readAsText(file, "utf-8");
     }
 
-    exportBtn.addEventListener("click", () => {
-      exportBasesToFile();
-    });
-
-    importBtn.addEventListener("click", () => {
-      importFileInput.click();
-    });
-
+    exportBtn.addEventListener("click", exportBasesToFile);
+    importBtn.addEventListener("click", () => importFileInput.click());
     importFileInput.addEventListener("change", handleImportFile);
 
-    // ★ 基地メタ編集（リストのダブルクリック）
+    // ===== 基地メタ編集 =====
     function editBaseMeta(base) {
       if (!base) return;
       let newName = prompt("基地名（空欄で変更なし）", base.name);
@@ -718,9 +687,7 @@
       );
       if (newLevel !== null && newLevel.trim() !== "") {
         const num = Number(newLevel.trim());
-        if (!isNaN(num)) {
-          base.level = num;
-        }
+        if (!isNaN(num)) base.level = num;
       }
 
       let newThumb = prompt(
@@ -733,19 +700,15 @@
       }
 
       saveBases();
-      updateBaseListUI();
-      draw();
     }
 
-    // ★ 基地名変更／削除（マップでダブルクリック）
     function renameOrDeleteBase(base) {
       if (!base) return;
       let newName = prompt(
         "基地名を変更してください（空欄で削除、キャンセルで何もしない）",
         base.name
       );
-      if (newName === null) return; // キャンセル
-
+      if (newName === null) return;
       newName = newName.trim();
       if (newName === "") {
         if (confirm(`基地「${base.name}」を削除しますか？`)) {
@@ -753,11 +716,8 @@
         }
         return;
       }
-
       base.name = newName;
       saveBases();
-      updateBaseListUI();
-      draw();
     }
 
     function addBaseAtGrid(gx, gy) {
@@ -786,8 +746,6 @@
         thumb: null
       });
       saveBases();
-      updateBaseListUI();
-      draw();
     }
 
     function moveBaseToGrid(baseId, gx, gy) {
@@ -800,11 +758,9 @@
       base.cells = cells;
       base.anchor = { x: gx, y: gy };
       saveBases();
-      updateBaseListUI();
-      draw();
     }
 
-    // ★ 基地リストUIの更新
+    // ===== 基地リストUI =====
     function updateBaseListUI() {
       baseListEl.innerHTML = "";
       bases.forEach((b) => {
@@ -856,8 +812,6 @@
             e.stopPropagation();
             b.status = st;
             saveBases();
-            updateBaseListUI();
-            draw();
           });
           statusDiv.appendChild(btn);
         });
@@ -880,7 +834,22 @@
       });
     }
 
-    // ===== 描画 =====
+    // ===== 描画ヘルパー =====
+    function drawRoundedRect(ctx, x, y, w, h, r) {
+      const radius = Math.min(r, w / 2, h / 2);
+      ctx.beginPath();
+      ctx.moveTo(x + radius, y);
+      ctx.lineTo(x + w - radius, y);
+      ctx.quadraticCurveTo(x + w, y, x + w, y + radius);
+      ctx.lineTo(x + w, y + h - radius);
+      ctx.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
+      ctx.lineTo(x + radius, y + h);
+      ctx.quadraticCurveTo(x, y + h, x, y + h - radius);
+      ctx.lineTo(x, y + radius);
+      ctx.quadraticCurveTo(x, y, x + radius, y);
+      ctx.closePath();
+    }
+
     function drawHexCenter(wx, wy, strokeStyle, fillStyle, lineWidth = 1) {
       const { x: sx, y: sy } = worldToScreen(wx, wy);
       const s = HEX_SIZE * scale;
@@ -913,8 +882,9 @@
     }
 
     function drawGrid() {
-      const w = canvas.width;
-      const h = canvas.height;
+      const rect = canvas.getBoundingClientRect();
+      const w = rect.width;
+      const h = rect.height;
 
       const margin = 80 / scale;
       const topLeftWorld = screenToWorld(-margin, -margin);
@@ -967,27 +937,29 @@
 
           let stroke, fill, lw;
           if (isSelectedCell) {
-            stroke = "rgba(255,221,85,0.6)";
+            stroke = "rgba(255,221,85,0.7)";
             fill   = "rgba(255,221,85,0.18)";
             lw = 1.5;
           } else if (inBlocked) {
-            stroke = "rgba(255, 80, 80, 0.65)";
-            fill   = "rgba(255, 80, 80, 0.22)";
+            stroke = "rgba(255, 80, 80, 0.75)";
+            fill   = "rgba(255, 80, 80, 0.25)";
             lw = 1.2;
           } else if (baseAt) {
             if (baseAt.status === "参加") {
-              stroke = "rgba(120, 255, 160, 0.85)";
-              fill   = "rgba(90, 230, 150, 0.28)";
+              stroke = "rgba(120, 255, 160, 0.9)";
+              fill   = "rgba(90, 230, 150, 0.30)";
             } else if (baseAt.status === "不参加") {
-              stroke = "rgba(255, 140, 140, 0.85)";
-              fill   = "rgba(255, 110, 110, 0.28)";
+              stroke = "rgba(255, 140, 140, 0.9)";
+              fill   = "rgba(255, 110, 110, 0.30)";
             } else {
-              stroke = "rgba(255, 230, 160, 0.85)";
-              fill   = "rgba(255, 220, 140, 0.26)";
+              stroke = "rgba(255, 230, 160, 0.9)";
+              fill   = "rgba(255, 220, 140, 0.28)";
             }
             lw = 1.4;
           } else {
-            stroke = "rgba(210, 255, 210, 0.10)";
+            stroke = inDesert
+              ? "rgba(230,210,120,0.18)"
+              : "rgba(210, 255, 210, 0.14)";
             fill   = null;
             lw = 0.8;
           }
@@ -1005,8 +977,8 @@
         else ctx.lineTo(s.x, s.y);
       });
       ctx.closePath();
-      ctx.strokeStyle = "rgba(230,210,120,0.7)";
-      ctx.lineWidth = 1.2;
+      ctx.strokeStyle = "rgba(230,210,120,0.85)";
+      ctx.lineWidth = 1.4;
       ctx.stroke();
     }
 
@@ -1018,77 +990,11 @@
         else ctx.lineTo(s.x, s.y);
       });
       ctx.closePath();
-      ctx.strokeStyle = "rgba(255, 80, 80, 0.7)";
+      ctx.strokeStyle = "rgba(255, 80, 80, 0.85)";
       ctx.lineWidth = 1.2;
       ctx.stroke();
     }
 
-    // ★ 地域ラベル（砂漠エリア / 芝生エリア ＆ 固定オブジェクト）
-    function drawRegionLabels() {
-      ctx.save();
-      ctx.fillStyle = "rgba(255,255,255,0.9)";
-      ctx.textAlign = "center";
-
-      let cx = 0, cy = 0;
-      desertVerticesGrid.forEach(v => {
-        cx += v.x;
-        cy += v.y;
-      });
-      cx /= desertVerticesGrid.length;
-      cy /= desertVerticesGrid.length;
-      const desertWorld = gridToWorld(cx, cy);
-      const desertScreen = worldToScreen(desertWorld.x, desertWorld.y);
-
-      let fontSize = Math.max(10, Math.min(22, 14 * scale * 2.5));
-      ctx.font = `${fontSize}px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
-      ctx.textBaseline = "middle";
-      ctx.fillText("砂漠エリア", desertScreen.x, desertScreen.y);
-
-      const grassGrid = { x: 500, y: 550 };
-      const grassWorld = gridToWorld(grassGrid.x, grassGrid.y);
-      const grassScreen = worldToScreen(grassWorld.x, grassWorld.y);
-      ctx.fillStyle = "rgba(200,255,200,0.85)";
-      ctx.fillText("芝生エリア", grassScreen.x, grassScreen.y);
-
-      const fixedLabels = [
-        { x: 500, y: 500, text: "配置不可エリア" },
-        { x: 517, y: 500, text: "砲台3号" },
-        { x: 491, y: 483, text: "砲台2号" },
-        { x: 491, y: 517, text: "砲台1号" }
-      ];
-
-      fontSize = Math.max(9, Math.min(18, 12 * scale * 2));
-      ctx.font = `${fontSize}px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
-      ctx.fillStyle = "rgba(255,255,255,0.9)";
-      ctx.textBaseline = "top";
-
-      fixedLabels.forEach(obj => {
-        const w = gridToWorld(obj.x, obj.y);
-        const s = worldToScreen(w.x, w.y);
-        const offset = HEX_SIZE * scale * 1.3;
-        ctx.fillText(obj.text, s.x, s.y + offset);
-      });
-
-      ctx.restore();
-    }
-
-    // 角丸矩形描画ヘルパー
-    function drawRoundedRect(ctx, x, y, w, h, r) {
-      const radius = Math.min(r, w / 2, h / 2);
-      ctx.beginPath();
-      ctx.moveTo(x + radius, y);
-      ctx.lineTo(x + w - radius, y);
-      ctx.quadraticCurveTo(x + w, y, x + w, y + radius);
-      ctx.lineTo(x + w, y + h - radius);
-      ctx.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
-      ctx.lineTo(x + radius, y + h);
-      ctx.quadraticCurveTo(x, y + h, x, y + h - radius);
-      ctx.lineTo(x, y + radius);
-      ctx.quadraticCurveTo(x, y, x + radius, y);
-      ctx.closePath();
-    }
-
-    // ★ 基地ラベル（パネル＋サムネ風アイコン）
     function drawBaseLabels() {
       ctx.save();
 
@@ -1108,15 +1014,15 @@
 
         ctx.font = `${baseFontSize}px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
 
-        const nameWidth    = ctx.measureText(nameText).width;
-        const statusWidth  = ctx.measureText(statusLine).width;
-        const coordWidth   = ctx.measureText(coordText).width;
+        const nameWidth   = ctx.measureText(nameText).width;
+        const statusWidth = ctx.measureText(statusLine).width;
+        const coordWidth  = ctx.measureText(coordText).width;
 
         const textWidth = Math.max(nameWidth, statusWidth, coordWidth);
-        const thumbSize = lineHeight * 1.8;
 
-        const paddingX = 6 * scale * 2;
-        const paddingY = 4 * scale * 2;
+        const thumbSize = lineHeight * 1.8;
+        const paddingX  = 6 * scale * 2;
+        const paddingY  = 4 * scale * 2;
 
         const panelWidth  = Math.max(textWidth, thumbSize) + paddingX * 2;
         const panelHeight = paddingY * 2 + thumbSize + 4 + lineHeight * 3;
@@ -1125,13 +1031,13 @@
         const panelX = screen.x - panelWidth / 2;
         const panelY = screen.y - offsetAboveHex - panelHeight;
 
-        ctx.globalAlpha = 0.9;
-        ctx.fillStyle = "rgba(0, 0, 0, 0.72)";
+        ctx.globalAlpha = 0.92;
+        ctx.fillStyle = "rgba(5, 6, 8, 0.92)";
         drawRoundedRect(ctx, panelX, panelY, panelWidth, panelHeight, 6);
         ctx.fill();
 
         ctx.globalAlpha = 1.0;
-        ctx.strokeStyle = "rgba(255, 255, 255, 0.15)";
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.16)";
         ctx.lineWidth = 1;
         drawRoundedRect(ctx, panelX, panelY, panelWidth, panelHeight, 6);
         ctx.stroke();
@@ -1145,11 +1051,11 @@
         const thumbX = screen.x - thumbSize / 2;
         const thumbY = cursorY;
 
-        ctx.fillStyle = "rgba(255,255,255,0.08)";
+        ctx.fillStyle = "rgba(255,255,255,0.10)";
         drawRoundedRect(ctx, thumbX, thumbY, thumbSize, thumbSize, 4);
         ctx.fill();
 
-        ctx.fillStyle = "rgba(255,255,255,0.75)";
+        ctx.fillStyle = "rgba(255,255,255,0.85)";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         const initial = (nameText && nameText.trim().length > 0)
@@ -1161,28 +1067,74 @@
 
         ctx.textAlign = "center";
         ctx.textBaseline = "top";
-        ctx.fillStyle = "rgba(255,255,255,0.95)";
+        ctx.fillStyle = "rgba(255,255,255,0.96)";
         ctx.fillText(nameText, screen.x, cursorY);
         cursorY += lineHeight;
 
         ctx.fillStyle =
           statusText === "参加"
-            ? "rgba(150, 255, 190, 0.95)"
+            ? "rgba(150, 255, 190, 0.96)"
             : statusText === "不参加"
-            ? "rgba(255, 170, 170, 0.95)"
-            : "rgba(255, 230, 170, 0.95)";
+            ? "rgba(255, 170, 170, 0.96)"
+            : "rgba(255, 230, 170, 0.96)";
         ctx.fillText(statusLine, screen.x, cursorY);
         cursorY += lineHeight;
 
-        ctx.fillStyle = "rgba(210, 230, 255, 0.95)";
+        ctx.fillStyle = "rgba(210, 230, 255, 0.96)";
         ctx.fillText(coordText, screen.x, cursorY);
       });
 
       ctx.restore();
     }
 
+    function drawRegionLabels() {
+      ctx.save();
+      ctx.fillStyle = "rgba(255,255,255,0.9)";
+      ctx.textAlign = "center";
+
+      let cx = 0, cy = 0;
+      desertVerticesGrid.forEach(v => { cx += v.x; cy += v.y; });
+      cx /= desertVerticesGrid.length;
+      cy /= desertVerticesGrid.length;
+      const desertWorld = gridToWorld(cx, cy);
+      const desertScreen = worldToScreen(desertWorld.x, desertWorld.y);
+
+      let fontSize = Math.max(10, Math.min(22, 14 * scale * 2.5));
+      ctx.font = `${fontSize}px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+      ctx.textBaseline = "middle";
+      ctx.fillText("砂漠エリア", desertScreen.x, desertScreen.y);
+
+      const grassGrid = { x: 500, y: 550 };
+      const grassWorld = gridToWorld(grassGrid.x, grassGrid.y);
+      const grassScreen = worldToScreen(grassWorld.x, grassWorld.y);
+      ctx.fillStyle = "rgba(200,255,200,0.9)";
+      ctx.fillText("芝生エリア", grassScreen.x, grassScreen.y);
+
+      const fixedLabels = [
+        { x: 500, y: 500, text: "配置不可エリア" },
+        { x: 517, y: 500, text: "砲台3号" },
+        { x: 491, y: 483, text: "砲台2号" },
+        { x: 491, y: 517, text: "砲台1号" }
+      ];
+
+      fontSize = Math.max(9, Math.min(18, 12 * scale * 2));
+      ctx.font = `${fontSize}px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+      ctx.fillStyle = "rgba(255,255,255,0.95)";
+      ctx.textBaseline = "top";
+
+      fixedLabels.forEach(obj => {
+        const w = gridToWorld(obj.x, obj.y);
+        const s = worldToScreen(w.x, w.y);
+        const offset = HEX_SIZE * scale * 1.3;
+        ctx.fillText(obj.text, s.x, s.y + offset);
+      });
+
+      ctx.restore();
+    }
+
     function draw() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const rect = canvas.getBoundingClientRect();
+      ctx.clearRect(0, 0, rect.width, rect.height);
       drawGrid();
       drawDesertOutline();
       drawBlockedOutline();
@@ -1196,14 +1148,6 @@
     }
 
     // ===== 操作 =====
-
-    // サイドバー開閉
-    sidebarToggle.addEventListener("click", () => {
-      const collapsed = sidebar.classList.toggle("collapsed");
-      sidebarToggle.textContent = collapsed ? "▼" : "▲";
-    });
-
-    // マウスダウン：基地ドラッグ or マップパン開始
     canvas.addEventListener("mousedown", (e) => {
       if (e.button !== 0) return;
       const rect = canvas.getBoundingClientRect();
@@ -1226,7 +1170,6 @@
       draw();
     });
 
-    // マウス移動
     window.addEventListener("mousemove", (e) => {
       if (draggingBaseId) {
         const rect = canvas.getBoundingClientRect();
@@ -1250,7 +1193,6 @@
       draw();
     });
 
-    // マウスアップ
     window.addEventListener("mouseup", () => {
       isPanning = false;
       draggingBaseId = null;
@@ -1258,7 +1200,6 @@
       canvas.classList.remove("dragging");
     });
 
-    // ホイールズーム
     canvas.addEventListener("wheel", (e) => {
       e.preventDefault();
       const rect = canvas.getBoundingClientRect();
@@ -1280,7 +1221,6 @@
       draw();
     }, { passive: false });
 
-    // クリック：セル選択
     canvas.addEventListener("click", (e) => {
       const rect = canvas.getBoundingClientRect();
       const mx = e.clientX - rect.left;
@@ -1290,7 +1230,6 @@
       draw();
     });
 
-    // ダブルクリック：基地追加 or 名前変更/削除
     canvas.addEventListener("dblclick", (e) => {
       const rect = canvas.getBoundingClientRect();
       const mx = e.clientX - rect.left;
@@ -1306,7 +1245,6 @@
       }
     });
 
-    // タッチ操作（スマホ） 基地ドラッグ or マップパン or 長押しで基地追加
     canvas.addEventListener("touchstart", (e) => {
       if (e.touches.length !== 1) return;
       const t = e.touches[0];
@@ -1321,15 +1259,6 @@
         draggingBaseId = base.id;
         lastDragCell = cell;
       } else {
-        // 長押しで基地追加
-        touchHoldCell = cell;
-        touchHoldTimer = setTimeout(() => {
-          touchHoldTimer = null;
-          const nowBase = findBaseAtCell(touchHoldCell.x, touchHoldCell.y);
-          if (!nowBase) {
-            addBaseAtGrid(touchHoldCell.x, touchHoldCell.y);
-          }
-        }, TOUCH_HOLD_MS);
         isPanning = true;
         lastMouseX = t.clientX;
         lastMouseY = t.clientY;
@@ -1344,16 +1273,6 @@
       const rect = canvas.getBoundingClientRect();
       const mx = t.clientX - rect.left;
       const my = t.clientY - rect.top;
-
-      // 動いたら長押しキャンセル
-      if (touchHoldTimer) {
-        const dx = Math.abs(t.clientX - lastMouseX);
-        const dy = Math.abs(t.clientY - lastMouseY);
-        if (dx > 10 || dy > 10) {
-          clearTimeout(touchHoldTimer);
-          touchHoldTimer = null;
-        }
-      }
 
       if (draggingBaseId) {
         const cell = screenToGrid(mx, my);
@@ -1375,14 +1294,9 @@
     }, { passive: true });
 
     window.addEventListener("touchend", () => {
-      if (touchHoldTimer) {
-        clearTimeout(touchHoldTimer);
-        touchHoldTimer = null;
-      }
       isPanning = false;
       draggingBaseId = null;
       lastDragCell = null;
-      touchHoldCell = null;
       canvas.classList.remove("dragging");
     });
   </script>
