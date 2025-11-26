@@ -3,11 +3,6 @@
 <head>
   <meta charset="UTF-8" />
   <title>284 Capital</title>
-  <!-- ★ スマホでちゃんとモバイル表示にする -->
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1, maximum-scale=1.0"
-  >
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body {
@@ -23,7 +18,7 @@
       display: block;
       background: radial-gradient(circle at top, #1d2838 0, #050608 50%);
       cursor: grab;
-      touch-action: none;
+      touch-action: none; /* ピンチ・ダブルタップ検出用 */
     }
     #map-canvas.dragging { cursor: grabbing; }
 
@@ -45,44 +40,7 @@
     .hud span.label { opacity: .6; }
     .hud span.value { font-variant-numeric: tabular-nums; }
 
-    /* ズームボタン */
-    .zoom-buttons {
-      position: fixed;
-      right: 10px;
-      bottom: 50px;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      z-index: 11;
-    }
-    .zoom-buttons button {
-      width: 30px;
-      height: 30px;
-      border-radius: 999px;
-      border: none;
-      background: rgba(0,0,0,0.75);
-      color: #f5f5f5;
-      font-size: 18px;
-      cursor: pointer;
-      backdrop-filter: blur(10px);
-    }
-
-    .hint {
-      position: fixed;
-      left: 10px;
-      bottom: 10px;
-      padding: 6px 10px;
-      border-radius: 999px;
-      background: rgba(0, 0, 0, .65);
-      backdrop-filter: blur(10px);
-      font-size: 11px;
-      opacity: .85;
-      pointer-events: none;
-      z-index: 10;
-      max-width: 520px;
-    }
-
-    /* サイドバー（基地リスト） */
+    /* サイドバー（基地リスト＋説明） */
     .sidebar {
       position: fixed;
       left: 10px;
@@ -90,7 +48,7 @@
       width: 280px;
       padding: 10px;
       border-radius: 16px;
-      background: rgba(0, 0, 0, 0.88);
+      background: rgba(0, 0, 0, 0.9);
       backdrop-filter: blur(14px);
       font-size: 12px;
       z-index: 20;
@@ -98,12 +56,13 @@
       max-height: calc(100% - 20px);
       display: flex;
       flex-direction: column;
-      transition: transform 0.2s ease, opacity 0.2s ease;
     }
     .sidebar.collapsed {
-      transform: translateY(-8px);
-      opacity: 0.4;
+      height: auto;
+      max-height: none;
+      padding: 6px 10px;
     }
+
     .sidebar-header {
       display: flex;
       align-items: center;
@@ -115,25 +74,13 @@
       font-size: 11px;
       text-transform: uppercase;
       letter-spacing: 0.06em;
-      opacity: 0.75;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .sidebar-toggle {
-      border: none;
-      border-radius: 999px;
-      padding: 2px 8px;
-      font-size: 11px;
-      cursor: pointer;
-      background: rgba(255,255,255,0.08);
-      color: #f5f5f5;
-      white-space: nowrap;
+      opacity: 0.8;
     }
     .sidebar-actions {
       display: flex;
       gap: 4px;
       flex-shrink: 0;
+      align-items: center;
     }
     .sidebar-actions button {
       border: none;
@@ -148,6 +95,17 @@
     .sidebar-actions button:hover {
       background: rgba(255,255,255,0.2);
     }
+    #toggle-sidebar {
+      font-size: 12px;
+      padding: 2px 8px;
+    }
+
+    #base-list-wrapper {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-height: 0;
+    }
 
     #base-list {
       list-style: none;
@@ -155,18 +113,22 @@
       padding: 0;
       overflow-y: auto;
       flex: 1;
-      margin-top: 4px;
     }
+
     .sidebar-note {
       margin-top: 6px;
       font-size: 10px;
       opacity: 0.7;
+      border-top: 1px solid rgba(255,255,255,0.08);
+      padding-top: 4px;
     }
+    .note-pc { display: block; }
+    .note-sp { display: none; margin-top: 2px; }
 
     #base-list li.base-item {
       display: flex;
       gap: 6px;
-      padding: 6px 7px;
+      padding: 5px 6px;
       border-radius: 10px;
       background: rgba(255,255,255,0.04);
       margin-bottom: 4px;
@@ -177,19 +139,12 @@
       background: rgba(255,255,255,0.08);
     }
 
-    .base-item-thumb {
-      width: 40px;
-      height: 40px;
-      border-radius: 999px;
-      background-color: rgba(255,255,255,0.06);
-      display: flex;
-      align-items: center;
-      justify-content: center;
+    .base-color-dot {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
       flex-shrink: 0;
-      font-size: 16px;
-      font-weight: 700;
-      color: #050608;
-      border: 1px solid rgba(255,255,255,0.25);
+      border: 1px solid rgba(0,0,0,0.5);
     }
 
     .base-item-info {
@@ -209,9 +164,9 @@
       overflow: hidden;
       text-overflow: ellipsis;
     }
-    .base-level {
+    .base-alliance {
       font-size: 11px;
-      opacity: 0.9;
+      opacity: 0.8;
       white-space: nowrap;
     }
     .base-item-meta-row {
@@ -220,122 +175,73 @@
       align-items: center;
       margin-top: 2px;
       gap: 4px;
+      font-size: 11px;
     }
     .base-coord {
-      font-size: 11px;
       opacity: 0.8;
       white-space: nowrap;
     }
-    .base-status {
-      display: flex;
-      gap: 2px;
-    }
-    .base-status button {
-      border: none;
-      border-radius: 999px;
-      padding: 1px 5px;
-      font-size: 10px;
-      cursor: pointer;
-      background: rgba(255,255,255,0.06);
-      color: #f5f5f5;
+    .base-tagline {
+      opacity: 0.85;
       white-space: nowrap;
-    }
-    .base-status button.active[data-status="参加"] {
-      background: rgba(80, 220, 140, 0.9);
-      color: #021108;
-    }
-    .base-status button.active[data-status="不参加"] {
-      background: rgba(240, 90, 90, 0.9);
-      color: #250202;
-    }
-    .base-status button.active[data-status="不明"] {
-      background: rgba(255, 210, 90, 0.9);
-      color: #251a02;
     }
 
-    /* 基地追加ダイアログ */
-    .dialog-backdrop {
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.6);
+    .sidebar.collapsed #base-list-wrapper,
+    .sidebar.collapsed .sidebar-note {
       display: none;
-      align-items: center;
-      justify-content: center;
-      z-index: 30;
     }
-    .dialog-backdrop.show {
+
+    /* ズームボタン */
+    .zoom-buttons {
+      position: fixed;
+      right: 10px;
+      bottom: 60px;
       display: flex;
+      flex-direction: column;
+      gap: 4px;
+      z-index: 10;
     }
-    .dialog {
-      width: 320px;
-      max-width: 90vw;
-      background: #0b0c10;
-      border-radius: 14px;
-      padding: 12px 14px;
-      box-shadow: 0 18px 45px rgba(0,0,0,0.65);
-      border: 1px solid rgba(255,255,255,0.16);
-      font-size: 12px;
-    }
-    .dialog-title {
-      font-size: 13px;
-      font-weight: 600;
-      margin-bottom: 8px;
-    }
-    .dialog-row {
-      margin-bottom: 6px;
-    }
-    .dialog-row label {
-      display: block;
-      font-size: 11px;
-      opacity: 0.8;
-      margin-bottom: 2px;
-    }
-    .dialog-row select {
-      width: 100%;
-      padding: 4px;
-      border-radius: 6px;
-      border: 1px solid rgba(255,255,255,0.25);
-      background: #141722;
-      color: #f5f5f5;
-      font-size: 12px;
-    }
-    .dialog-row .dialog-inline {
-      display: flex;
-      gap: 6px;
-    }
-    .dialog-actions {
-      display: flex;
-      justify-content: flex-end;
-      gap: 6px;
-      margin-top: 8px;
-    }
-    .dialog-actions button {
+    .zoom-buttons button {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
       border: none;
-      border-radius: 999px;
-      padding: 4px 10px;
-      font-size: 11px;
+      background: rgba(0,0,0,0.75);
+      color: #fff;
+      font-size: 18px;
       cursor: pointer;
     }
-    .dialog-actions .cancel-btn {
-      background: rgba(255,255,255,0.08);
-      color: #f5f5f5;
+
+    /* ポップ表示切替 */
+    #toggle-popups-label {
+      font-size: 10px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      margin-top: 2px;
+      opacity: 0.85;
     }
-    .dialog-actions .ok-btn {
-      background: rgba(80,200,255,0.95);
-      color: #02060a;
+    #toggle-popups {
+      width: 14px;
+      height: 14px;
     }
 
     @media (max-width: 768px) {
-      .hint {
+      .hud {
+        right: 8px;
+        bottom: 8px;
         font-size: 10px;
-        max-width: 90%;
+      }
+      .zoom-buttons {
+        right: 8px;
+        bottom: 52px;
       }
       .sidebar {
         width: calc(100% - 20px);
         left: 10px;
         right: 10px;
-        top: 10px;
-        max-height: 45%;
+        top: 8px;
+        max-height: 40%;
       }
       .sidebar-title {
         font-size: 10px;
@@ -344,53 +250,50 @@
         font-size: 9px;
         padding: 2px 4px;
       }
-      .sidebar-toggle {
-        font-size: 10px;
-      }
-      .hud {
-        top: 10px;
-        bottom: auto;
-        right: 10px;
-        font-size: 10px;
-      }
-      .zoom-buttons {
-        right: 10px;
-        bottom: 60px;
-      }
+      .note-pc { display: none; }
+      .note-sp { display: block; }
     }
   </style>
 </head>
 <body>
   <canvas id="map-canvas"></canvas>
 
-  <!-- サイドバー：基地一覧 -->
   <div class="sidebar" id="sidebar">
     <div class="sidebar-header">
-      <div class="sidebar-title">
-        <button id="sidebar-toggle" class="sidebar-toggle">基地一覧 ▾</button>
-      </div>
+      <div class="sidebar-title">284 Capital - 基地一覧</div>
       <div class="sidebar-actions">
         <button id="copy-btn">コピー</button>
-        <button id="export-btn">エクスポート</button>
-        <button id="import-btn">インポート</button>
-        <input type="file" id="import-file" accept="application/json" style="display:none" />
+        <button id="toggle-popups-label-btn">ポップ</button>
+        <button id="toggle-sidebar">－</button>
       </div>
     </div>
-    <ul id="base-list"></ul>
+
+    <div id="base-list-wrapper">
+      <ul id="base-list"></ul>
+      <label id="toggle-popups-label">
+        <input type="checkbox" id="toggle-popups" checked />
+        マップ上に基地ポップを表示
+      </label>
+    </div>
+
     <div class="sidebar-note">
-      ・PC：ドラッグで移動 / ホイールでズーム / 空きマスをダブルクリックで基地追加 / 基地ダブルクリックで編集 or 削除 / 基地ドラッグで移動<br>
-      ・スマホ：1本指ドラッグで移動 / ピンチイン・アウトで拡大縮小 / 空きマスを素早く2回タップで基地追加 / 基地ドラッグで移動<br>
-      ・状態・レベル・Tランク・同盟アイコンはブラウザに自動保存（ローカル） / エクスポート・インポートでバックアップ
+      <div class="note-pc">
+        【PC】空きマス：ダブルクリックで基地追加 / 基地マス：ダブルクリックで編集・削除 / 左ドラッグで移動 / ホイールや＋－ボタンでズーム
+      </div>
+      <div class="note-sp">
+        【スマホ】空きマス：同じマスを素早く2回タップで基地追加 / 基地マス：2回タップで編集・削除 / 1本指ドラッグで移動 / ピンチまたは＋－ボタンでズーム
+      </div>
+      <div style="margin-top:2px;">
+        コピー：同盟名・基地名・座標（X*** Y***）をまとめてクリップボードへ
+      </div>
     </div>
   </div>
 
-  <!-- ズームボタン -->
   <div class="zoom-buttons">
     <button id="zoom-in">＋</button>
     <button id="zoom-out">－</button>
   </div>
 
-  <!-- HUD -->
   <div class="hud">
     <span class="label">Zoom</span>
     <span class="value" id="zoom-display">100%</span>
@@ -398,46 +301,51 @@
     <span class="value" id="cell-display">—</span>
   </div>
 
-  <!-- 説明（あとでPC/スマホで文言切り替え） -->
-  <div class="hint" id="hint-text">読み込み中…</div>
-
-  <!-- 基地追加ダイアログ -->
-  <div class="dialog-backdrop" id="base-dialog-backdrop">
-    <div class="dialog" id="base-dialog">
-      <div class="dialog-title">基地追加</div>
-
-      <div class="dialog-row">
-        <label for="dialog-alliance">所属同盟</label>
-        <select id="dialog-alliance"></select>
-      </div>
-
-      <div class="dialog-row">
-        <label for="dialog-name">基地名（同盟メンバーから選択）</label>
-        <select id="dialog-name"></select>
-      </div>
-
-      <div class="dialog-row dialog-inline">
-        <div style="flex:1;">
-          <label for="dialog-status">状態</label>
-          <select id="dialog-status">
+  <!-- 基地追加・編集ダイアログ -->
+  <div id="base-dialog"
+       style="position:fixed; inset:0; display:none; align-items:center; justify-content:center; z-index:30; background:rgba(0,0,0,0.6);">
+    <div style="background:#101317; padding:12px 14px; border-radius:12px; width:280px; max-width:90%; font-size:12px;">
+      <div style="font-size:13px; font-weight:600; margin-bottom:6px;">基地の追加 / 編集</div>
+      <div style="display:flex; flex-direction:column; gap:6px;">
+        <label>
+          <span>所属同盟</span><br/>
+          <select id="dlg-alliance" style="width:100%; margin-top:2px; font-size:12px;"></select>
+        </label>
+        <label>
+          <span>基地名</span><br/>
+          <select id="dlg-name" style="width:100%; margin-top:2px; font-size:12px;"></select>
+        </label>
+        <label>
+          <span>参加状態</span><br/>
+          <select id="dlg-status" style="width:100%; margin-top:2px; font-size:12px;">
             <option value="参加">参加</option>
             <option value="不参加">不参加</option>
             <option value="不明" selected>不明</option>
           </select>
-        </div>
-        <div style="flex:1;">
-          <label for="dialog-level">レベル</label>
-          <select id="dialog-level"></select>
-        </div>
-        <div style="flex:1;">
-          <label for="dialog-tier">Tランク</label>
-          <select id="dialog-tier"></select>
-        </div>
+        </label>
+        <label>
+          <span>レベル</span><br/>
+          <select id="dlg-level" style="width:100%; margin-top:2px; font-size:12px;"></select>
+        </label>
+        <label>
+          <span>Tランク</span><br/>
+          <select id="dlg-tier" style="width:100%; margin-top:2px; font-size:12px;"></select>
+        </label>
+        <div style="font-size:11px; opacity:0.7;" id="dlg-coord-text"></div>
       </div>
-
-      <div class="dialog-actions">
-        <button class="cancel-btn" id="dialog-cancel">キャンセル</button>
-        <button class="ok-btn" id="dialog-ok">追加</button>
+      <div style="display:flex; justify-content:flex-end; gap:6px; margin-top:10px;">
+        <button id="dlg-cancel"
+                style="border:none; border-radius:999px; padding:4px 10px; font-size:12px; background:#444; color:#f5f5f5;">
+          キャンセル
+        </button>
+        <button id="dlg-delete"
+                style="border:none; border-radius:999px; padding:4px 10px; font-size:12px; background:#aa3333; color:#fff; display:none;">
+          削除
+        </button>
+        <button id="dlg-ok"
+                style="border:none; border-radius:999px; padding:4px 10px; font-size:12px; background:#2c7be5; color:#fff;">
+          決定
+        </button>
       </div>
     </div>
   </div>
@@ -448,41 +356,36 @@
     const zoomDisplay = document.getElementById("zoom-display");
     const cellDisplay = document.getElementById("cell-display");
     const baseListEl = document.getElementById("base-list");
-    const exportBtn = document.getElementById("export-btn");
-    const importBtn = document.getElementById("import-btn");
-    const importFileInput = document.getElementById("import-file");
-    const sidebar = document.getElementById("sidebar");
-    const sidebarToggle = document.getElementById("sidebar-toggle");
+    const sidebarEl = document.getElementById("sidebar");
     const copyBtn = document.getElementById("copy-btn");
-    const hintTextEl = document.getElementById("hint-text");
+    const toggleSidebarBtn = document.getElementById("toggle-sidebar");
     const zoomInBtn = document.getElementById("zoom-in");
     const zoomOutBtn = document.getElementById("zoom-out");
+    const togglePopupsCheckbox = document.getElementById("toggle-popups");
+    const togglePopupsLabelBtn = document.getElementById("toggle-popups-label-btn");
 
-    // ダイアログ要素
-    const dialogBackdrop = document.getElementById("base-dialog-backdrop");
-    const dialogAlliance = document.getElementById("dialog-alliance");
-    const dialogName = document.getElementById("dialog-name");
-    const dialogStatus = document.getElementById("dialog-status");
-    const dialogLevel = document.getElementById("dialog-level");
-    const dialogTier = document.getElementById("dialog-tier");
-    const dialogCancel = document.getElementById("dialog-cancel");
-    const dialogOk = document.getElementById("dialog-ok");
+    // ダイアログ関連
+    const baseDialog = document.getElementById("base-dialog");
+    const dlgAlliance = document.getElementById("dlg-alliance");
+    const dlgName = document.getElementById("dlg-name");
+    const dlgStatus = document.getElementById("dlg-status");
+    const dlgLevel = document.getElementById("dlg-level");
+    const dlgTier = document.getElementById("dlg-tier");
+    const dlgCoordText = document.getElementById("dlg-coord-text");
+    const dlgCancel = document.getElementById("dlg-cancel");
+    const dlgOk = document.getElementById("dlg-ok");
+    const dlgDelete = document.getElementById("dlg-delete");
 
     // ===== 基本設定 =====
     const HEX_SIZE = 20;
     const GRID_MAX_X = 999;
     const GRID_MAX_Y = 999;
-
     const HEX_HEIGHT = 2 * HEX_SIZE;
     const HEX_WIDTH  = Math.sqrt(3) * HEX_SIZE;
     const HEX_VERT_SPACING  = 1.5 * HEX_SIZE;
     const HEX_HORIZ_SPACING = HEX_WIDTH;
-
     const EDGE_THICKNESS_WORLD = HEX_SIZE * 0.8;
     const STORAGE_KEY = "hexmap_bases_v6";
-
-    let canvasCSSWidth = 0;
-    let canvasCSSHeight = 0;
 
     let scale = 0.35;
     let offsetX = 0;
@@ -495,53 +398,56 @@
     let lastMouseY = 0;
     let selectedCell = null;
 
-    // 基地ドラッグ用
+    // タッチ系（ダブルタップ検出用）
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let lastTapTime = 0;
+    let lastTapCell = null;
+    const TAP_MAX_DELAY = 320;  // ms
+    const TAP_MAX_MOVE  = 12;   // px
+
+    // 基地ドラッグ
     let draggingBaseId = null;
     let lastDragCell = null;
 
-    // ダイアログ用：追加予定セル
-    let pendingAddCell = null;
+    // 基地 {id, allianceKey, name, status, level, tier, cells[], anchor{x,y}}
+    const bases = [];
+    let baseCount = 0;
 
-    // ===== 同盟データ（B777 + メンバー） =====
-    const ALLIANCES = [
-      {
-        key: "B777",
-        name: "B777",
-        color: "#ffb347",
-        members: [
-          "SuperZeus","Ram","ponsu","すぎっしー","NEXUS21","neku-ra","Crazy楊Frog",
-          "GENLuckyTrigger","マナ","Ramen-X","やちこ","ヨホホホホ","Lamawa","Carna the God",
-          "jun33","オーシマン","るんず","WDギャン","Hans 23","アカサ","えび","ステカセ王",
-          "ケイー","Yanoyano","赤ヘル","タカちゃん","RUKA0806","ポル","yanchaaan",
-          "zerozerozero","アルアル","M731","Vikara","RUSK222","JoJo11","フランメ",
-          "Happyぼっち","keioka","みにこり","キャノン","靈魂拷問者","迷子","simon-nu",
-          "まむし","OneTop","しまんちゅ","Vivihana","PIPECUT","ロッシー","Ra-Men-Man",
-          "yusukerion","onaka","xJISOOx","れみす","ヴォーグ","mr344","浮亂苦","Nescop",
-          "irohoma","くまみーん","亞丘?斯","岡ティー","アイアイ","サムエル","もえご",
-          "QQ27","elchaaaan","Coffee jelly","ぺけたん","SEELE","mamimumemo","あこまき",
-          "ジャン","1m2","ユウディ","ウニいくら","いろはす","Tnation","バイソン","たけむー",
-          "CraZyLiOn","アジング","lupiX","nyu-ha-to","＊MISERY＊","もーー","Sakura0207",
-          "ピザコーラ","ronrico","余韻","GSX1300R"
-        ]
-      }
-      // 他の同盟を追加したくなったらここに足す
-    ];
-
-    const STATUS_OPTIONS = ["参加", "不参加", "不明"];
-    const TIER_OPTIONS = ["T10","T9","T8","T7","T6","T5","T4","T3","T2","T1"]; // 高い方を上
-    const LEVEL_OPTIONS = Array.from({length: 30}, (_,i) => 30 - i); // 30〜1（高い方から）
-
-    // ★ 首都中心と表示半径（首都±50マス）
     const CAPITAL_CENTER_X = 500;
     const CAPITAL_CENTER_Y = 500;
     const VIEW_RADIUS = 50;
-
     const VIEW_MIN_X = Math.max(0, CAPITAL_CENTER_X - VIEW_RADIUS);
     const VIEW_MAX_X = Math.min(GRID_MAX_X, CAPITAL_CENTER_X + VIEW_RADIUS);
     const VIEW_MIN_Y = Math.max(0, CAPITAL_CENTER_Y - VIEW_RADIUS);
     const VIEW_MAX_Y = Math.min(GRID_MAX_Y, CAPITAL_CENTER_Y + VIEW_RADIUS);
 
-    // ===== 砂漠エリア（元・首都エリアの多角形）=====
+    // ===== 同盟データ（B777＋メンバー） =====
+    const ALLIANCES = [
+      {
+        key: "B777",
+        name: "B777",
+        color: "#ffcc00",
+        textColor: "#201500",
+        members: [
+          "SuperZeus","Ram","ponsu","すぎっしー","NEXUS21","neku-ra","Crazy楊Frog",
+          "GENLuckyTrigger","マナ","Ramen-X","やちこ","ヨホホホホ","Lamawa","Carna the God","jun33",
+          "オーシマン","るんず","WDギャン","Hans 23","アカサ","えび","ステカセ王","ケイー","Yanoyano",
+          "赤ヘル","タカちゃん","RUKA0806","ポル","yanchaaan","zerozerozero","アルアル","M731","Vikara",
+          "RUSK222","JoJo11","フランメ","Happyぼっち","keioka","みにこり","キャノン","靈魂拷問者","迷子",
+          "simon-nu","まむし","OneTop","しまんちゅ","Vivihana","PIPECUT","ロッシー","Ra-Men-Man","yusukerion",
+          "onaka","xJISOOx","れみす","ヴォーグ","mr344","浮亂苦","Nescop","irohoma","くまみーん","亞丘?斯",
+          "岡ティー","アイアイ","サムエル","もえご","QQ27","elchaaaan","Coffee jelly","ぺけたん","SEELE",
+          "mamimumemo","あこまき","ジャン","1m2","ユウディ","ウニいくら","いろはす","Tnation","バイソン",
+          "たけむー","CraZyLiOn","アジング","lupiX","nyu-ha-to","＊MISERY＊","もーー","Sakura0207","ピザコーラ",
+          "ronrico","余韻","GSX1300R"
+        ]
+      }
+    ];
+    const allianceMap = {};
+    ALLIANCES.forEach(a => { allianceMap[a.key] = a; });
+
+    // ===== エリアポリゴン =====
     const desertVerticesGrid = [
       { x: 482, y: 465 },
       { x: 465, y: 500 },
@@ -550,8 +456,6 @@
       { x: 535, y: 500 },
       { x: 517, y: 465 }
     ];
-
-    // ===== 配置不可（赤）メイン六角 =====
     const blockedVerticesGrid = [
       { x: 483, y: 500 },
       { x: 491, y: 517 },
@@ -560,59 +464,26 @@
       { x: 508, y: 483 },
       { x: 491, y: 483 }
     ];
-
-    // ★ 追加の単体配置不可セル（赤）
     const extraBlockedCells = [
-      { x: 489, y: 515 },
-      { x: 490, y: 516 },
-      { x: 490, y: 517 },
-      { x: 491, y: 518 },
-      { x: 491, y: 585 },
-      { x: 492, y: 518 },
-      { x: 493, y: 518 },
-      { x: 494, y: 518 },
-      { x: 489, y: 516 },
-      { x: 489, y: 517 },
-      { x: 490, y: 518 },
-      { x: 490, y: 519 },
-      { x: 491, y: 519 },
-      { x: 492, y: 519 },
-      { x: 493, y: 519 },
-      { x: 517, y: 502 },
-      { x: 517, y: 501 },
-      { x: 517, y: 502 },
-      { x: 518, y: 500 },
-      { x: 518, y: 499 },
-      { x: 518, y: 498 },
-      { x: 517, y: 497 },
-      { x: 517, y: 496 },
-      { x: 517, y: 499 },
-      { x: 517, y: 498 },
-      { x: 516, y: 497 },
-      { x: 516, y: 496 },
-      { x: 489, y: 485 },
-      { x: 489, y: 484 },
-      { x: 489, y: 483 },
-      { x: 490, y: 482 },
-      { x: 490, y: 484 },
-      { x: 490, y: 483 },
-      { x: 491, y: 482 },
-      { x: 491, y: 481 },
-      { x: 492, y: 482 },
-      { x: 492, y: 481 },
-      { x: 493, y: 482 },
-      { x: 494, y: 482 },
-      { x: 490, y: 481 },
-      { x: 493, y: 481 },
-      { x: 494, y: 482 }
+      { x: 489, y: 515 },{ x: 490, y: 516 },{ x: 490, y: 517 },{ x: 491, y: 518 },
+      { x: 491, y: 585 },{ x: 492, y: 518 },{ x: 493, y: 518 },{ x: 494, y: 518 },
+      { x: 489, y: 516 },{ x: 489, y: 517 },{ x: 490, y: 518 },{ x: 490, y: 519 },
+      { x: 491, y: 519 },{ x: 492, y: 519 },{ x: 493, y: 519 },
+      { x: 517, y: 502 },{ x: 517, y: 501 },{ x: 517, y: 502 },{ x: 518, y: 500 },
+      { x: 518, y: 499 },{ x: 518, y: 498 },{ x: 517, y: 497 },{ x: 517, y: 496 },
+      { x: 517, y: 499 },{ x: 517, y: 498 },{ x: 516, y: 497 },{ x: 516, y: 496 },
+      { x: 489, y: 485 },{ x: 489, y: 484 },{ x: 489, y: 483 },{ x: 490, y: 482 },
+      { x: 490, y: 484 },{ x: 490, y: 483 },{ x: 491, y: 482 },{ x: 491, y: 481 },
+      { x: 492, y: 482 },{ x: 492, y: 481 },{ x: 493, y: 482 },{ x: 494, y: 482 },
+      { x: 490, y: 481 },{ x: 493, y: 481 },{ x: 494, y: 482 }
     ];
 
     let desertPolygonWorld = [];
     let blockedPolygonWorld = [];
 
-    // ===== 基地の形（axial座標で半径1クラスター＝7マス）=====
+    // 基地形状（半径1の7マス）
     const basePatternAxial = [
-      { dq: 0, dr: 0 },   // 中央
+      { dq: 0, dr: 0 },
       { dq: 1, dr: 0 },
       { dq: 0, dr: 1 },
       { dq: -1, dr: 1 },
@@ -621,7 +492,7 @@
       { dq: 1, dr: -1 }
     ];
 
-    // odd-r <-> axial 変換
+    /* odd-r <-> axial */
     function oddrToAxial(col, row) {
       const q = col - (row - (row & 1)) / 2;
       const r = row;
@@ -633,27 +504,16 @@
       return { x: col, y: row };
     }
 
-    // ===== 基地一覧 {id, name, allianceKey, tier, level, status, cells:[{x,y}], anchor:{x,y}} =====
-    const bases = [];
-
     function resizeCanvas() {
       const rect = canvas.getBoundingClientRect();
-      const dpr = window.devicePixelRatio || 1;
-      canvasCSSWidth = rect.width;
-      canvasCSSHeight = rect.height;
-
-      canvas.width = rect.width * dpr;
-      canvas.height = rect.height * dpr;
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      canvas.width = rect.width;
+      canvas.height = rect.height;
 
       if (!resizeCanvas.initialized) {
         resizeCanvas.initialized = true;
-
-        const midX = CAPITAL_CENTER_X;
-        const midY = CAPITAL_CENTER_Y;
-        const midWorld = gridToWorld(midX, midY);
-        offsetX = canvasCSSWidth / 2 - midWorld.x * scale;
-        offsetY = canvasCSSHeight / 2 - midWorld.y * scale;
+        const midWorld = gridToWorld(CAPITAL_CENTER_X, CAPITAL_CENTER_Y);
+        offsetX = canvas.width / 2 - midWorld.x * scale;
+        offsetY = canvas.height / 2 - midWorld.y * scale;
 
         desertPolygonWorld = desertVerticesGrid.map(v => gridToWorld(v.x, v.y));
         blockedPolygonWorld = blockedVerticesGrid.map(v => gridToWorld(v.x, v.y));
@@ -673,15 +533,12 @@
       const wy = HEX_VERT_SPACING * gy;
       return { x: wx, y: wy };
     }
-
     function worldToScreen(wx, wy) {
       return { x: wx * scale + offsetX, y: wy * scale + offsetY };
     }
-
     function screenToWorld(sx, sy) {
       return { x: (sx - offsetX) / scale, y: (sy - offsetY) / scale };
     }
-
     function screenToGrid(sx, sy) {
       const w = screenToWorld(sx, sy);
       let gy = Math.round(w.y / HEX_VERT_SPACING);
@@ -692,7 +549,7 @@
       return { x: gx, y: gy };
     }
 
-    // ===== 幾何ユーティリティ =====
+    // ===== 幾何 =====
     function pointInPolygon(point, polygon) {
       let inside = false;
       for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
@@ -705,7 +562,6 @@
       }
       return inside;
     }
-
     function pointToSegmentDistance(p, a, b) {
       const vx = b.x - a.x;
       const vy = b.y - a.y;
@@ -720,13 +576,10 @@
       const projy = a.y + t * vy;
       return Math.hypot(p.x - projx, p.y - projy);
     }
-
     function distanceToPolygonEdges(p, polygon) {
       let minD = Infinity;
       for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-        const a = polygon[j];
-        const b = polygon[i];
-        const d = pointToSegmentDistance(p, a, b);
+        const d = pointToSegmentDistance(p, polygon[j], polygon[i]);
         if (d < minD) minD = d;
       }
       return minD;
@@ -742,11 +595,10 @@
       return inside || dist <= EDGE_THICKNESS_WORLD;
     }
 
-    // ===== 基地関連 =====
+    // ===== 基地 =====
     function findBaseAtCell(gx, gy) {
       return bases.find(b => b.cells.some(c => c.x === gx && c.y === gy)) || null;
     }
-
     function createBaseCellsForAnchor(gx, gy, ignoreBaseId = null) {
       const { q, r } = oddrToAxial(gx, gy);
       const cells = basePatternAxial.map(off => {
@@ -754,11 +606,9 @@
         const or = r + off.dr;
         return axialToOddr(oq, or);
       });
-
       for (const c of cells) {
         if (c.x < 0 || c.x > GRID_MAX_X || c.y < 0 || c.y > GRID_MAX_Y) return null;
         if (isBlockedCell(c.x, c.y)) return null;
-
         for (const b of bases) {
           if (ignoreBaseId && b.id === ignoreBaseId) continue;
           if (b.cells.some(d => d.x === c.x && d.y === c.y)) return null;
@@ -766,7 +616,6 @@
       }
       return cells;
     }
-
     function deleteBaseById(id) {
       const idx = bases.findIndex(b => b.id === id);
       if (idx !== -1) {
@@ -777,30 +626,27 @@
       }
     }
 
-    // ===== 保存・読み込み・インポート／エクスポート =====
+    // ===== 保存・読み込み =====
     function makeSerializableData() {
       return {
         bases: bases.map(b => ({
           id: b.id,
-          name: b.name,
           allianceKey: b.allianceKey,
-          tier: b.tier,
-          level: b.level,
+          name: b.name,
           status: b.status,
+          level: b.level,
+          tier: b.tier,
           anchor: b.anchor
         }))
       };
     }
-
     function saveBases() {
-      const data = makeSerializableData();
       try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(makeSerializableData()));
       } catch (e) {
         console.warn("saveBases error:", e);
       }
     }
-
     function loadBases() {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) return;
@@ -809,229 +655,191 @@
         if (!data || !Array.isArray(data.bases)) return;
         data.bases.forEach(rec => {
           if (!rec.anchor) return;
-          const anchor = rec.anchor;
-          const cells = createBaseCellsForAnchor(anchor.x, anchor.y, null);
+          const cells = createBaseCellsForAnchor(rec.anchor.x, rec.anchor.y, null);
           if (!cells) return;
           bases.push({
             id: rec.id || (Date.now().toString(36) + Math.random().toString(36).slice(2,7)),
-            name: rec.name || "基地",
             allianceKey: rec.allianceKey || "B777",
-            tier: rec.tier || "T1",
-            level: rec.level != null ? rec.level : null,
+            name: rec.name || "基地",
             status: rec.status || "不明",
+            level: rec.level ?? null,
+            tier: rec.tier || "T1",
             cells,
-            anchor
+            anchor: rec.anchor
           });
         });
+        baseCount = bases.length;
       } catch (e) {
         console.warn("loadBases error:", e);
       }
     }
 
-    function importBasesFromData(data) {
-      if (!data || !Array.isArray(data.bases)) {
-        alert("インポートするJSONの形式が不正です。");
-        return;
-      }
-      if (!confirm("現在の基地データを全て置き換えますか？")) return;
+    // ===== ダイアログ =====
+    let dialogMode = "create"; // create / edit
+    let dialogCell = null;
+    let dialogEditingBase = null;
 
-      bases.length = 0;
-      data.bases.forEach(rec => {
-        if (!rec.anchor) return;
-        const anchor = rec.anchor;
-        const cells = createBaseCellsForAnchor(anchor.x, anchor.y, null);
-        if (!cells) return;
-        bases.push({
-          id: rec.id || (Date.now().toString(36) + Math.random().toString(36).slice(2,7)),
-          name: rec.name || "基地",
-          allianceKey: rec.allianceKey || "B777",
-          tier: rec.tier || "T1",
-          level: rec.level != null ? rec.level : null,
-          status: rec.status || "不明",
-          cells,
-          anchor
-        });
-      });
-      saveBases();
-      updateBaseListUI();
-      draw();
-    }
-
-    function exportBasesToFile() {
-      const data = makeSerializableData();
-      const json = JSON.stringify(data, null, 2);
-      const blob = new Blob([json], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "bases.json";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    }
-
-    function handleImportFile(e) {
-      const file = e.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        try {
-          const data = JSON.parse(ev.target.result);
-          importBasesFromData(data);
-        } catch (err) {
-          console.error(err);
-          alert("JSONの読み込みに失敗しました。");
-        } finally {
-          importFileInput.value = "";
-        }
-      };
-      reader.readAsText(file, "utf-8");
-    }
-
-    exportBtn.addEventListener("click", exportBasesToFile);
-    importBtn.addEventListener("click", () => importFileInput.click());
-    importFileInput.addEventListener("change", handleImportFile);
-
-    // ===== 基地メタ編集（マップでダブルクリック用） =====
-    function renameOrDeleteBase(base) {
-      if (!base) return;
-      const newName = prompt(
-        "基地名を変更してください（空欄で削除、キャンセルで何もしない）",
-        base.name
-      );
-      if (newName === null) return;
-      const trimmed = newName.trim();
-      if (trimmed === "") {
-        if (confirm(`基地「${base.name}」を削除しますか？`)) {
-          deleteBaseById(base.id);
-        }
-        return;
-      }
-      base.name = trimmed;
-      saveBases();
-      updateBaseListUI();
-      draw();
-    }
-
-    // ===== 基地追加ダイアログ関連 =====
     function initDialogSelectors() {
       // 同盟
-      dialogAlliance.innerHTML = "";
+      dlgAlliance.innerHTML = "";
       ALLIANCES.forEach(a => {
         const opt = document.createElement("option");
         opt.value = a.key;
         opt.textContent = a.name;
-        dialogAlliance.appendChild(opt);
+        dlgAlliance.appendChild(opt);
       });
 
-      // レベル 30〜1
-      dialogLevel.innerHTML = "";
-      LEVEL_OPTIONS.forEach(level => {
+      // レベル 30 → 1
+      dlgLevel.innerHTML = "";
+      for (let lv = 30; lv >= 1; lv--) {
         const opt = document.createElement("option");
-        opt.value = String(level);
-        opt.textContent = String(level);
-        dialogLevel.appendChild(opt);
-      });
+        opt.value = String(lv);
+        opt.textContent = `Lv.${lv}`;
+        dlgLevel.appendChild(opt);
+      }
 
-      // Tランク T10〜T1
-      dialogTier.innerHTML = "";
-      TIER_OPTIONS.forEach(t => {
+      // Tランク T10 → T1
+      dlgTier.innerHTML = "";
+      for (let t = 10; t >= 1; t--) {
         const opt = document.createElement("option");
-        opt.value = t;
-        opt.textContent = t;
-        dialogTier.appendChild(opt);
-      });
-
-      updateDialogNameOptions();
-    }
-
-    function getUsedNamesForAlliance(key) {
-      return bases
-        .filter(b => b.allianceKey === key)
-        .map(b => b.name);
-    }
-
-    function updateDialogNameOptions() {
-      const allianceKey = dialogAlliance.value || ALLIANCES[0].key;
-      const alliance = ALLIANCES.find(a => a.key === allianceKey) || ALLIANCES[0];
-      const usedNames = new Set(getUsedNamesForAlliance(alliance.key));
-
-      dialogName.innerHTML = "";
-      alliance.members.forEach(name => {
-        if (usedNames.has(name)) return; // 既にマップ上にある基地名は候補から外す
-        const opt = document.createElement("option");
-        opt.value = name;
-        opt.textContent = name;
-        dialogName.appendChild(opt);
-      });
-
-      if (dialogName.children.length === 0) {
-        const opt = document.createElement("option");
-        opt.value = "";
-        opt.textContent = "（空きなし）";
-        dialogName.appendChild(opt);
+        opt.value = `T${t}`;
+        opt.textContent = `T${t}`;
+        dlgTier.appendChild(opt);
       }
     }
 
-    dialogAlliance.addEventListener("change", updateDialogNameOptions);
+    function updateNameOptionsForAlliance(allianceKey, currentName = null) {
+      const alliance = allianceMap[allianceKey];
+      dlgName.innerHTML = "";
+      if (!alliance) return;
+      const usedNames = new Set(bases.map(b => b.name));
+      alliance.members.forEach(name => {
+        if (dialogMode === "edit" && name === currentName) {
+          // 編集時は自分の名前は選択可能に残す
+          const opt = document.createElement("option");
+          opt.value = name;
+          opt.textContent = name;
+          dlgName.appendChild(opt);
+        } else if (!usedNames.has(name)) {
+          const opt = document.createElement("option");
+          opt.value = name;
+          opt.textContent = name;
+          dlgName.appendChild(opt);
+        }
+      });
+      if (dlgName.options.length === 0) {
+        const opt = document.createElement("option");
+        opt.value = currentName || "";
+        opt.textContent = currentName || "(空き基地名なし)";
+        dlgName.appendChild(opt);
+      }
+    }
 
-    function openBaseDialog(cell) {
-      pendingAddCell = cell;
-      updateDialogNameOptions();
-      dialogStatus.value = "不明";
-      dialogLevel.value = String(30);
-      dialogTier.value = "T10";
-      dialogBackdrop.classList.add("show");
+    function openBaseDialogForCreate(cell) {
+      dialogMode = "create";
+      dialogCell = cell;
+      dialogEditingBase = null;
+      dlgDelete.style.display = "none";
+      dlgStatus.value = "不明";
+
+      const defaultAllianceKey = ALLIANCES[0]?.key || "B777";
+      dlgAlliance.value = defaultAllianceKey;
+      updateNameOptionsForAlliance(defaultAllianceKey, null);
+      dlgLevel.value = "30";
+      dlgTier.value = "T10";
+
+      dlgCoordText.textContent = `配置セル: X${cell.x} Y${cell.y}`;
+      baseDialog.style.display = "flex";
+    }
+
+    function openBaseDialogForEdit(base) {
+      dialogMode = "edit";
+      dialogEditingBase = base;
+      dialogCell = base.anchor;
+      dlgDelete.style.display = "inline-block";
+
+      dlgAlliance.value = base.allianceKey || "B777";
+      updateNameOptionsForAlliance(base.allianceKey || "B777", base.name);
+      dlgName.value = base.name;
+      dlgStatus.value = base.status || "不明";
+      if (base.level != null) dlgLevel.value = String(base.level);
+      dlgTier.value = base.tier || "T1";
+
+      dlgCoordText.textContent = `配置セル: X${base.anchor.x} Y${base.anchor.y}`;
+      baseDialog.style.display = "flex";
     }
 
     function closeBaseDialog() {
-      dialogBackdrop.classList.remove("show");
-      pendingAddCell = null;
+      baseDialog.style.display = "none";
+      dialogCell = null;
+      dialogEditingBase = null;
     }
 
-    dialogCancel.addEventListener("click", () => {
+    dlgAlliance.addEventListener("change", () => {
+      const key = dlgAlliance.value;
+      const currentName = dialogEditingBase ? dialogEditingBase.name : null;
+      updateNameOptionsForAlliance(key, currentName);
+    });
+
+    dlgCancel.addEventListener("click", () => {
       closeBaseDialog();
     });
 
-    dialogOk.addEventListener("click", () => {
-      if (!pendingAddCell) {
+    dlgDelete.addEventListener("click", () => {
+      if (!dialogEditingBase) return;
+      if (confirm(`基地「${dialogEditingBase.name}」を削除しますか？`)) {
+        deleteBaseById(dialogEditingBase.id);
+        closeBaseDialog();
+      }
+    });
+
+    dlgOk.addEventListener("click", () => {
+      const allianceKey = dlgAlliance.value;
+      const alliance = allianceMap[allianceKey] || ALLIANCES[0];
+      const name = dlgName.value || "基地";
+      const status = dlgStatus.value || "不明";
+      const level = Number(dlgLevel.value || "0");
+      const tier = dlgTier.value || "T1";
+
+      if (!dialogCell) {
         closeBaseDialog();
         return;
       }
-      const gx = pendingAddCell.x;
-      const gy = pendingAddCell.y;
+      const gx = dialogCell.x;
+      const gy = dialogCell.y;
 
-      const allianceKey = dialogAlliance.value || ALLIANCES[0].key;
-      const alliance = ALLIANCES.find(a => a.key === allianceKey) || ALLIANCES[0];
-
-      const name = dialogName.value;
-      if (!name) {
-        alert("選択できる基地名がありません。");
-        return;
+      if (dialogMode === "create") {
+        const cells = createBaseCellsForAnchor(gx, gy, null);
+        if (!cells) {
+          alert("この位置には基地を配置できません。");
+          return;
+        }
+        const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+        bases.push({
+          id,
+          allianceKey: alliance.key,
+          name,
+          status,
+          level: isNaN(level) ? null : level,
+          tier,
+          cells,
+          anchor: { x: gx, y: gy }
+        });
+        baseCount++;
+      } else if (dialogMode === "edit" && dialogEditingBase) {
+        const cells = createBaseCellsForAnchor(gx, gy, dialogEditingBase.id);
+        if (!cells) {
+          alert("この位置には基地を配置できません。");
+          return;
+        }
+        dialogEditingBase.allianceKey = alliance.key;
+        dialogEditingBase.name = name;
+        dialogEditingBase.status = status;
+        dialogEditingBase.level = isNaN(level) ? null : level;
+        dialogEditingBase.tier = tier;
+        dialogEditingBase.cells = cells;
+        dialogEditingBase.anchor = { x: gx, y: gy };
       }
-
-      const status = dialogStatus.value || "不明";
-      const level = parseInt(dialogLevel.value, 10);
-      const tier = dialogTier.value || "T1";
-
-      const cells = createBaseCellsForAnchor(gx, gy, null);
-      if (!cells) {
-        alert("この位置には基地を配置できません。");
-        return;
-      }
-
-      const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
-      bases.push({
-        id,
-        name,
-        allianceKey: alliance.key,
-        tier,
-        level: isNaN(level) ? null : level,
-        status,
-        cells,
-        anchor: { x: gx, y: gy }
-      });
 
       saveBases();
       updateBaseListUI();
@@ -1039,48 +847,31 @@
       closeBaseDialog();
     });
 
-    // ===== 基地リストUI =====
-    function getAllianceInfo(key) {
-      return ALLIANCES.find(a => a.key === key) || ALLIANCES[0];
-    }
-
+    // ===== リストUI =====
     function updateBaseListUI() {
       baseListEl.innerHTML = "";
-
-      // ソート：同盟名 → Tランク（T10が上）→ レベル降順 → 名前
+      // ソート（同盟→レベル降順→名前）
       const sorted = [...bases].sort((a, b) => {
-        const aa = getAllianceInfo(a.allianceKey).name;
-        const ab = getAllianceInfo(b.allianceKey).name;
-        if (aa < ab) return -1;
-        if (aa > ab) return 1;
-
-        const ta = TIER_OPTIONS.indexOf(a.tier || "T1");
-        const tb = TIER_OPTIONS.indexOf(b.tier || "T1");
-        if (ta !== tb) return ta - tb; // indexが小さい＝上位
-
+        if (a.allianceKey !== b.allianceKey) {
+          return a.allianceKey.localeCompare(b.allianceKey);
+        }
         const la = a.level || 0;
         const lb = b.level || 0;
         if (la !== lb) return lb - la;
-
-        if (a.name < b.name) return -1;
-        if (a.name > b.name) return 1;
-        return 0;
+        return (a.name || "").localeCompare(b.name || "");
       });
 
-      sorted.forEach((b) => {
+      sorted.forEach(b => {
         const li = document.createElement("li");
         li.className = "base-item";
 
-        const ally = getAllianceInfo(b.allianceKey);
-        const initial = ally.name ? ally.name.charAt(0) : "?";
+        const alliance = allianceMap[b.allianceKey] || ALLIANCES[0];
+        const dot = document.createElement("div");
+        dot.className = "base-color-dot";
+        dot.style.background = alliance.color;
 
-        const thumbDiv = document.createElement("div");
-        thumbDiv.className = "base-item-thumb";
-        thumbDiv.style.backgroundColor = ally.color || "rgba(255,255,255,0.6)";
-        thumbDiv.textContent = initial;
-
-        const infoDiv = document.createElement("div");
-        infoDiv.className = "base-item-info";
+        const info = document.createElement("div");
+        info.className = "base-item-info";
 
         const nameRow = document.createElement("div");
         nameRow.className = "base-item-name-row";
@@ -1089,75 +880,41 @@
         nameSpan.className = "base-name";
         nameSpan.textContent = b.name;
 
-        const levelSpan = document.createElement("span");
-        levelSpan.className = "base-level";
-        const lvText = b.level != null ? `Lv.${b.level}` : "Lv.-";
-        levelSpan.textContent = `${ally.name} ${b.tier} / ${lvText}`;
+        const allianceSpan = document.createElement("span");
+        allianceSpan.className = "base-alliance";
+        allianceSpan.textContent = alliance.name;
 
         nameRow.appendChild(nameSpan);
-        nameRow.appendChild(levelSpan);
+        nameRow.appendChild(allianceSpan);
 
         const metaRow = document.createElement("div");
         metaRow.className = "base-item-meta-row";
 
-        const anchor = b.anchor || b.cells[0];
         const coordSpan = document.createElement("span");
         coordSpan.className = "base-coord";
-        coordSpan.textContent = `X${anchor.x} Y${anchor.y}`;
+        coordSpan.textContent = `X${b.anchor.x} Y${b.anchor.y}`;
 
-        const statusDiv = document.createElement("div");
-        statusDiv.className = "base-status";
-
-        STATUS_OPTIONS.forEach(st => {
-          const btn = document.createElement("button");
-          btn.dataset.status = st;
-          btn.textContent = st;
-          if (b.status === st) {
-            btn.classList.add("active");
-          }
-          btn.addEventListener("click", (e) => {
-            e.stopPropagation();
-            b.status = st;
-            saveBases();
-            updateBaseListUI();
-            draw();
-          });
-          statusDiv.appendChild(btn);
-        });
+        const tagSpan = document.createElement("span");
+        tagSpan.className = "base-tagline";
+        const lv = b.level != null ? `Lv.${b.level}` : "Lv.-";
+        tagSpan.textContent = `${b.status} ${b.tier} ${lv}`;
 
         metaRow.appendChild(coordSpan);
-        metaRow.appendChild(statusDiv);
+        metaRow.appendChild(tagSpan);
 
-        infoDiv.appendChild(nameRow);
-        infoDiv.appendChild(metaRow);
+        info.appendChild(nameRow);
+        info.appendChild(metaRow);
 
-        li.appendChild(thumbDiv);
-        li.appendChild(infoDiv);
+        li.appendChild(dot);
+        li.appendChild(info);
 
-        // 行のダブルクリックで名前変更/削除
         li.addEventListener("dblclick", (e) => {
           e.stopPropagation();
-          renameOrDeleteBase(b);
+          openBaseDialogForEdit(b);
         });
 
         baseListEl.appendChild(li);
       });
-    }
-
-    // ===== 角丸矩形ヘルパー =====
-    function drawRoundedRect(ctx, x, y, w, h, r) {
-      const radius = Math.min(r, w / 2, h / 2);
-      ctx.beginPath();
-      ctx.moveTo(x + radius, y);
-      ctx.lineTo(x + w - radius, y);
-      ctx.quadraticCurveTo(x + w, y, x + w, y + radius);
-      ctx.lineTo(x + w, y + h - radius);
-      ctx.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
-      ctx.lineTo(x + radius, y + h);
-      ctx.quadraticCurveTo(x, y + h, x, y + h - radius);
-      ctx.lineTo(x, y + radius);
-      ctx.quadraticCurveTo(x, y, x + radius, y);
-      ctx.closePath();
     }
 
     // ===== 描画 =====
@@ -1193,13 +950,14 @@
     }
 
     function drawGrid() {
+      const w = canvas.width;
+      const h = canvas.height;
       const margin = 80 / scale;
       const topLeftWorld = screenToWorld(-margin, -margin);
-      const bottomRightWorld = screenToWorld(canvasCSSWidth + margin, canvasCSSHeight + margin);
+      const bottomRightWorld = screenToWorld(w + margin, h + margin);
 
       let gyMin = Math.floor(topLeftWorld.y / HEX_VERT_SPACING) - 2;
       let gyMax = Math.ceil(bottomRightWorld.y / HEX_VERT_SPACING) + 2;
-
       gyMin = Math.max(0, gyMin);
       gyMax = Math.min(GRID_MAX_Y, gyMax);
       gyMin = Math.max(gyMin, VIEW_MIN_Y);
@@ -1210,7 +968,6 @@
 
         let gxMin = Math.floor((topLeftWorld.x - rowOffset) / HEX_HORIZ_SPACING) - 2;
         let gxMax = Math.ceil((bottomRightWorld.x - rowOffset) / HEX_HORIZ_SPACING) + 2;
-
         gxMin = Math.max(0, gxMin);
         gxMax = Math.min(GRID_MAX_X, gxMax);
         gxMin = Math.max(gxMin, VIEW_MIN_X);
@@ -1233,43 +990,34 @@
 
           let inExtraBlocked = false;
           for (const c of extraBlockedCells) {
-            if (gx === c.x && gy === c.y) {
-              inExtraBlocked = true;
-              break;
-            }
+            if (gx === c.x && gy === c.y) { inExtraBlocked = true; break; }
           }
           const inBlocked = inBlockedPolygon || inExtraBlocked;
-
           const baseAt = findBaseAtCell(gx, gy);
 
           let stroke, fill, lw;
           if (isSelectedCell) {
-            stroke = "rgba(255,221,85,0.6)";
-            fill   = "rgba(255,221,85,0.18)";
-            lw = 1.5;
+            stroke = "rgba(255,221,85,0.7)";
+            fill   = "rgba(255,221,85,0.15)";
+            lw = 1.6;
           } else if (inBlocked) {
-            stroke = "rgba(255, 80, 80, 0.65)";
-            fill   = "rgba(255, 80, 80, 0.22)";
+            stroke = "rgba(255,80,80,0.7)";
+            fill   = "rgba(255,80,80,0.22)";
             lw = 1.2;
           } else if (baseAt) {
-            if (baseAt.status === "参加") {
-              stroke = "rgba(120, 255, 160, 0.85)";
-              fill   = "rgba(90, 230, 150, 0.28)";
-            } else if (baseAt.status === "不参加") {
-              stroke = "rgba(255, 140, 140, 0.85)";
-              fill   = "rgba(255, 110, 110, 0.28)";
-            } else { // 不明
-              stroke = "rgba(255, 230, 160, 0.85)";
-              fill   = "rgba(255, 220, 140, 0.26)";
-            }
-            lw = 1.4;
+            const alliance = allianceMap[baseAt.allianceKey] || ALLIANCES[0];
+            let alphaFill = 0.25;
+            if (baseAt.status === "参加") alphaFill = 0.34;
+            else if (baseAt.status === "不参加") alphaFill = 0.22;
+            stroke = hexToRgba(alliance.color, 0.95);
+            fill   = hexToRgba(alliance.color, alphaFill);
+            lw = 1.5;
           } else {
-            // 通常マス（芝生）薄い線のみ
             stroke = inDesert
-              ? "rgba(240, 220, 150, 0.12)"
-              : "rgba(210, 255, 210, 0.10)";
-            fill   = null;
-            lw = 0.8;
+              ? "rgba(235,220,150,0.12)"
+              : "rgba(210,255,210,0.10)";
+            fill = null;
+            lw = 0.7;
           }
 
           drawHexCenter(wx, wy, stroke, fill, lw);
@@ -1285,7 +1033,7 @@
         else ctx.lineTo(s.x, s.y);
       });
       ctx.closePath();
-      ctx.strokeStyle = "rgba(230,210,120,0.7)";
+      ctx.strokeStyle = "rgba(230,210,120,0.8)";
       ctx.lineWidth = 1.2;
       ctx.stroke();
     }
@@ -1298,7 +1046,7 @@
         else ctx.lineTo(s.x, s.y);
       });
       ctx.closePath();
-      ctx.strokeStyle = "rgba(255, 80, 80, 0.7)";
+      ctx.strokeStyle = "rgba(255,80,80,0.75)";
       ctx.lineWidth = 1.2;
       ctx.stroke();
     }
@@ -1309,22 +1057,18 @@
       ctx.textAlign = "center";
 
       let cx = 0, cy = 0;
-      desertVerticesGrid.forEach(v => {
-        cx += v.x;
-        cy += v.y;
-      });
+      desertVerticesGrid.forEach(v => { cx += v.x; cy += v.y; });
       cx /= desertVerticesGrid.length;
       cy /= desertVerticesGrid.length;
       const desertWorld = gridToWorld(cx, cy);
       const desertScreen = worldToScreen(desertWorld.x, desertWorld.y);
 
-      let fontSize = Math.max(10, Math.min(22, 14 * scale * 2.5));
-      ctx.font = `${fontSize}px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+      let fontSize = Math.max(11, Math.min(22, 14 * scale * 2.5));
+      ctx.font = `${fontSize}px system-ui, -apple-system, BlinkMacSystemFont,"Segoe UI",sans-serif`;
       ctx.textBaseline = "middle";
       ctx.fillText("砂漠エリア", desertScreen.x, desertScreen.y);
 
-      const grassGrid = { x: 500, y: 550 };
-      const grassWorld = gridToWorld(grassGrid.x, grassGrid.y);
+      const grassWorld = gridToWorld(500, 550);
       const grassScreen = worldToScreen(grassWorld.x, grassWorld.y);
       ctx.fillStyle = "rgba(200,255,200,0.85)";
       ctx.fillText("芝生エリア", grassScreen.x, grassScreen.y);
@@ -1337,7 +1081,7 @@
       ];
 
       fontSize = Math.max(9, Math.min(18, 12 * scale * 2));
-      ctx.font = `${fontSize}px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+      ctx.font = `${fontSize}px system-ui, -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif`;
       ctx.fillStyle = "rgba(255,255,255,0.9)";
       ctx.textBaseline = "top";
 
@@ -1351,7 +1095,23 @@
       ctx.restore();
     }
 
+    function drawRoundedRect(ctx, x, y, w, h, r) {
+      const radius = Math.min(r, w/2, h/2);
+      ctx.beginPath();
+      ctx.moveTo(x + radius, y);
+      ctx.lineTo(x + w - radius, y);
+      ctx.quadraticCurveTo(x + w, y, x + w, y + radius);
+      ctx.lineTo(x + w, y + h - radius);
+      ctx.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
+      ctx.lineTo(x + radius, y + h);
+      ctx.quadraticCurveTo(x, y + h, x, y + h - radius);
+      ctx.lineTo(x, y + radius);
+      ctx.quadraticCurveTo(x, y, x + radius, y);
+      ctx.closePath();
+    }
+
     function drawBaseLabels() {
+      if (!togglePopupsCheckbox.checked) return;
       ctx.save();
 
       bases.forEach(b => {
@@ -1359,83 +1119,80 @@
         const world = gridToWorld(anchor.x, anchor.y);
         const screen = worldToScreen(world.x, world.y);
 
+        const alliance = allianceMap[b.allianceKey] || ALLIANCES[0];
+        const nameText = b.name;
         const statusText = b.status || "不明";
-        const levelText  = b.level != null ? `Lv.${b.level}` : "Lv.-";
-        const statusLine = `${statusText} ${b.tier || "T1"} ${levelText}`;
-        const coordText  = `X${anchor.x} Y${anchor.y}`;
-        const nameText   = b.name;
+        const levelText = b.level != null ? `Lv.${b.level}` : "Lv.-";
+        const tierText = b.tier || "T1";
+        const statusLine = `${statusText} ${tierText} ${levelText}`;
+        const coordText = `X${anchor.x} Y${anchor.y}`;
 
-        const baseFontSize = Math.max(9, Math.min(17, 13 * scale * 2.5));
-        const lineHeight   = baseFontSize * 1.12;
+        const baseFontSize = Math.max(9, Math.min(16, 12 * scale * 2.5));
+        const lineHeight = baseFontSize * 1.15;
 
-        ctx.font = `${baseFontSize}px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+        ctx.font = `${baseFontSize}px system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif`;
 
-        const nameWidth    = ctx.measureText(nameText).width;
-        const statusWidth  = ctx.measureText(statusLine).width;
-        const coordWidth   = ctx.measureText(coordText).width;
+        const nameWidth = ctx.measureText(nameText).width;
+        const statusWidth = ctx.measureText(statusLine).width;
+        const coordWidth = ctx.measureText(coordText).width;
         const textWidth = Math.max(nameWidth, statusWidth, coordWidth);
 
-        const thumbSize = lineHeight * 1.8;
-
+        const iconSize = lineHeight * 1.8;
         const paddingX = 6 * scale * 2;
         const paddingY = 4 * scale * 2;
 
-        const panelWidth  = Math.max(textWidth, thumbSize) + paddingX * 2;
-        const panelHeight = paddingY * 2 + thumbSize + 4 + lineHeight * 3;
-
+        const panelWidth = Math.max(textWidth, iconSize) + paddingX * 2;
+        const panelHeight = paddingY * 2 + iconSize + 4 + lineHeight * 3;
         const offsetAboveHex = HEX_SIZE * scale * 1.6;
+
         const panelX = screen.x - panelWidth / 2;
         const panelY = screen.y - offsetAboveHex - panelHeight;
 
         ctx.globalAlpha = 0.9;
-        ctx.fillStyle = "rgba(0, 0, 0, 0.72)";
+        ctx.fillStyle = "rgba(0,0,0,0.75)";
         drawRoundedRect(ctx, panelX, panelY, panelWidth, panelHeight, 6);
         ctx.fill();
-
         ctx.globalAlpha = 1.0;
-        ctx.strokeStyle = "rgba(255, 255, 255, 0.18)";
+        ctx.strokeStyle = "rgba(255,255,255,0.12)";
         ctx.lineWidth = 1;
         drawRoundedRect(ctx, panelX, panelY, panelWidth, panelHeight, 6);
         ctx.stroke();
 
         ctx.textAlign = "center";
         ctx.textBaseline = "top";
-        ctx.font = `${baseFontSize}px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
 
         let cursorY = panelY + paddingY;
 
-        const ally = getAllianceInfo(b.allianceKey);
-        const initial = ally.name ? ally.name.charAt(0) : "?";
-        const thumbX = screen.x - thumbSize / 2;
-        const thumbY = cursorY;
-
-        ctx.fillStyle = ally.color || "rgba(255,255,255,0.6)";
-        drawRoundedRect(ctx, thumbX, thumbY, thumbSize, thumbSize, thumbSize / 2);
+        const iconX = screen.x - iconSize / 2;
+        const iconY = cursorY;
+        ctx.fillStyle = alliance.color;
+        drawRoundedRect(ctx, iconX, iconY, iconSize, iconSize, 4);
         ctx.fill();
 
-        ctx.fillStyle = "rgba(0,0,0,0.85)";
+        ctx.fillStyle = alliance.textColor || "#000";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
-        ctx.fillText(initial, screen.x, thumbY + thumbSize / 2);
+        ctx.font = `${baseFontSize}px system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif`;
+        ctx.fillText(alliance.name, screen.x, iconY + iconSize / 2);
 
-        cursorY += thumbSize + 4;
+        cursorY += iconSize + 4;
 
         ctx.textAlign = "center";
         ctx.textBaseline = "top";
-        ctx.fillStyle = "rgba(255,255,255,0.95)";
+        ctx.font = `${baseFontSize}px system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif`;
+
+        ctx.fillStyle = "rgba(255,255,255,0.96)";
         ctx.fillText(nameText, screen.x, cursorY);
         cursorY += lineHeight;
 
         ctx.fillStyle =
-          statusText === "参加"
-            ? "rgba(150, 255, 190, 0.95)"
-            : statusText === "不参加"
-            ? "rgba(255, 170, 170, 0.95)"
-            : "rgba(255, 230, 170, 0.95)";
+          statusText === "参加" ? "rgba(150,255,190,0.96)"
+          : statusText === "不参加" ? "rgba(255,170,170,0.96)"
+          : "rgba(255,230,170,0.96)";
         ctx.fillText(statusLine, screen.x, cursorY);
         cursorY += lineHeight;
 
-        ctx.fillStyle = "rgba(210, 230, 255, 0.95)";
+        ctx.fillStyle = "rgba(210,230,255,0.96)";
         ctx.fillText(coordText, screen.x, cursorY);
       });
 
@@ -1443,7 +1200,7 @@
     }
 
     function draw() {
-      ctx.clearRect(0, 0, canvasCSSWidth, canvasCSSHeight);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
       drawGrid();
       drawDesertOutline();
       drawBlockedOutline();
@@ -1456,89 +1213,17 @@
         : "—";
     }
 
-    // ===== 説明文 PC / スマホ分け =====
-    function updateHintText() {
-      const isMobile = window.innerWidth < 768 || "ontouchstart" in window;
-
-      if (isMobile) {
-        hintTextEl.innerHTML =
-          "スマホ：1本指ドラッグで移動 / ピンチイン・アウトで拡大縮小 / " +
-          "空きマスを素早く2回タップで基地追加 / 基地ドラッグで移動 / " +
-          "右下ボタンでズーム / 上の「基地一覧 ▾」でリスト開閉";
+    // ===== マップ操作 =====
+    function handleCellDoubleAction(cell) {
+      const base = findBaseAtCell(cell.x, cell.y);
+      if (base) {
+        openBaseDialogForEdit(base);
       } else {
-        hintTextEl.innerHTML =
-          "PC：ドラッグで移動 / ホイールでズーム / 空きマスをダブルクリックで基地追加 / " +
-          "基地マスをダブルクリックで編集 or 削除 / 基地ドラッグで移動 / 右下ボタンでズーム";
+        openBaseDialogForCreate(cell);
       }
     }
-    updateHintText();
-    window.addEventListener("resize", updateHintText);
 
-    // ===== サイドバー開閉 =====
-    sidebarToggle.addEventListener("click", () => {
-      const collapsed = sidebar.classList.toggle("collapsed");
-      sidebarToggle.textContent = collapsed ? "基地一覧 ▴" : "基地一覧 ▾";
-    });
-
-    // ===== クリップボードコピー機能 =====
-    copyBtn.addEventListener("click", async () => {
-      if (bases.length === 0) {
-        alert("コピーする基地がありません。");
-        return;
-      }
-
-      const lines = bases.map(b => {
-        const ally = getAllianceInfo(b.allianceKey);
-        const allyName = ally.name || "";
-        const anchor = b.anchor || b.cells[0];
-        return `${allyName}\t${b.name}\tX${anchor.x} Y${anchor.y}`;
-      }).join("\n");
-
-      try {
-        await navigator.clipboard.writeText(lines);
-        alert("同盟名・基地名・座標のリストをクリップボードにコピーしました。");
-      } catch (e) {
-        // 古いブラウザ用フォールバック
-        const ta = document.createElement("textarea");
-        ta.value = lines;
-        ta.style.position = "fixed";
-        ta.style.left = "-9999px";
-        document.body.appendChild(ta);
-        ta.select();
-        try {
-          document.execCommand("copy");
-          alert("同盟名・基地名・座標のリストをクリップボードにコピーしました。");
-        } catch (err) {
-          alert("コピーに失敗しました。端末の制限があるかもしれません。");
-        }
-        document.body.removeChild(ta);
-      }
-    });
-
-    // ===== 操作 =====
-    function applyZoomAt(pointX, pointY, zoomFactor) {
-      let newScale = scale * zoomFactor;
-      newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, newScale));
-      if (newScale === scale) return;
-
-      const worldBefore = screenToWorld(pointX, pointY);
-      scale = newScale;
-      const worldAfter = screenToWorld(pointX, pointY);
-
-      offsetX += (worldAfter.x - worldBefore.x) * scale;
-      offsetY += (worldAfter.y - worldBefore.y) * scale;
-
-      draw();
-    }
-
-    zoomInBtn.addEventListener("click", () => {
-      applyZoomAt(canvasCSSWidth / 2, canvasCSSHeight / 2, 1.15);
-    });
-    zoomOutBtn.addEventListener("click", () => {
-      applyZoomAt(canvasCSSWidth / 2, canvasCSSHeight / 2, 1 / 1.15);
-    });
-
-    // マウスダウン（ドラッグ開始 or 基地ドラッグ開始）
+    // マウス
     canvas.addEventListener("mousedown", (e) => {
       if (e.button !== 0) return;
       const rect = canvas.getBoundingClientRect();
@@ -1551,17 +1236,15 @@
       if (base) {
         draggingBaseId = base.id;
         lastDragCell = cell;
-        canvas.classList.add("dragging");
       } else {
         isPanning = true;
         lastMouseX = e.clientX;
         lastMouseY = e.clientY;
-        canvas.classList.add("dragging");
       }
+      canvas.classList.add("dragging");
       draw();
     });
 
-    // マウス移動（ドラッグ中）
     window.addEventListener("mousemove", (e) => {
       if (draggingBaseId) {
         const rect = canvas.getBoundingClientRect();
@@ -1569,22 +1252,11 @@
         const my = e.clientY - rect.top;
         const cell = screenToGrid(mx, my);
         if (!lastDragCell || cell.x !== lastDragCell.x || cell.y !== lastDragCell.y) {
-          const base = bases.find(b => b.id === draggingBaseId);
-          if (base) {
-            const cells = createBaseCellsForAnchor(cell.x, cell.y, draggingBaseId);
-            if (cells) {
-              base.cells = cells;
-              base.anchor = { x: cell.x, y: cell.y };
-              saveBases();
-              updateBaseListUI();
-              draw();
-              lastDragCell = cell;
-            }
-          }
+          moveBaseToGrid(draggingBaseId, cell.x, cell.y);
+          lastDragCell = cell;
         }
         return;
       }
-
       if (!isPanning) return;
       const dx = e.clientX - lastMouseX;
       const dy = e.clientY - lastMouseY;
@@ -1602,18 +1274,15 @@
       canvas.classList.remove("dragging");
     });
 
-    // ホイールズーム
     canvas.addEventListener("wheel", (e) => {
       e.preventDefault();
       const rect = canvas.getBoundingClientRect();
       const mx = e.clientX - rect.left;
       const my = e.clientY - rect.top;
-
-      const zoomDelta = e.deltaY > 0 ? 1 / 1.15 : 1.15;
-      applyZoomAt(mx, my, zoomDelta);
+      const delta = e.deltaY > 0 ? -0.1 : 0.1;
+      zoomAt(mx, my, delta);
     }, { passive: false });
 
-    // クリック：セル選択のみ
     canvas.addEventListener("click", (e) => {
       const rect = canvas.getBoundingClientRect();
       const mx = e.clientX - rect.left;
@@ -1623,31 +1292,26 @@
       draw();
     });
 
-    // ダブルクリック：
-    //  - 基地マス → 名前変更 or 削除（旧仕様維持）
-    //  - 空きマス → 新規基地追加ダイアログ
     canvas.addEventListener("dblclick", (e) => {
       const rect = canvas.getBoundingClientRect();
       const mx = e.clientX - rect.left;
       const my = e.clientY - rect.top;
       const cell = screenToGrid(mx, my);
       selectedCell = cell;
-
-      const base = findBaseAtCell(cell.x, cell.y);
-      if (base) {
-        renameOrDeleteBase(base);
-      } else {
-        openBaseDialog(cell);
-      }
+      handleCellDoubleAction(cell);
     });
 
-    // タッチ操作
+    // タッチ（スマホ）: ドラッグ + ダブルタップ検出
     canvas.addEventListener("touchstart", (e) => {
       if (e.touches.length !== 1) return;
       const t = e.touches[0];
       const rect = canvas.getBoundingClientRect();
       const mx = t.clientX - rect.left;
       const my = t.clientY - rect.top;
+
+      touchStartX = t.clientX;
+      touchStartY = t.clientY;
+
       const cell = screenToGrid(mx, my);
       selectedCell = cell;
 
@@ -1674,18 +1338,8 @@
       if (draggingBaseId) {
         const cell = screenToGrid(mx, my);
         if (!lastDragCell || cell.x !== lastDragCell.x || cell.y !== lastDragCell.y) {
-          const base = bases.find(b => b.id === draggingBaseId);
-          if (base) {
-            const cells = createBaseCellsForAnchor(cell.x, cell.y, draggingBaseId);
-            if (cells) {
-              base.cells = cells;
-              base.anchor = { x: cell.x, y: cell.y };
-              saveBases();
-              updateBaseListUI();
-              draw();
-              lastDragCell = cell;
-            }
-          }
+          moveBaseToGrid(draggingBaseId, cell.x, cell.y);
+          lastDragCell = cell;
         }
         return;
       }
@@ -1700,12 +1354,118 @@
       draw();
     }, { passive: true });
 
-    window.addEventListener("touchend", () => {
+    window.addEventListener("touchend", (e) => {
+      // タップ距離・時間からダブルタップ判定
+      const now = Date.now();
+      const rect = canvas.getBoundingClientRect();
+
+      if (e.changedTouches && e.changedTouches.length === 1) {
+        const t = e.changedTouches[0];
+        const moveDist = Math.hypot(t.clientX - touchStartX, t.clientY - touchStartY);
+        if (moveDist < TAP_MAX_MOVE) {
+          const mx = t.clientX - rect.left;
+          const my = t.clientY - rect.top;
+          const cell = screenToGrid(mx, my);
+
+          if (
+            lastTapCell &&
+            now - lastTapTime < TAP_MAX_DELAY &&
+            lastTapCell.x === cell.x &&
+            lastTapCell.y === cell.y
+          ) {
+            // ダブルタップとして処理
+            handleCellDoubleAction(cell);
+            lastTapTime = 0;
+            lastTapCell = null;
+          } else {
+            lastTapTime = now;
+            lastTapCell = cell;
+          }
+        }
+      }
+
       isPanning = false;
       draggingBaseId = null;
       lastDragCell = null;
       canvas.classList.remove("dragging");
     });
+
+    // ===== 補助関数 =====
+    function zoomAt(mx, my, zoomDelta) {
+      let newScale = scale + zoomDelta * scale;
+      newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, newScale));
+      if (newScale === scale) return;
+      const worldBefore = screenToWorld(mx, my);
+      scale = newScale;
+      const worldAfter = screenToWorld(mx, my);
+      offsetX += (worldAfter.x - worldBefore.x) * scale;
+      offsetY += (worldAfter.y - worldBefore.y) * scale;
+      draw();
+    }
+
+    zoomInBtn.addEventListener("click", () => {
+      const rect = canvas.getBoundingClientRect();
+      zoomAt(rect.width / 2, rect.height / 2, 0.2);
+    });
+    zoomOutBtn.addEventListener("click", () => {
+      const rect = canvas.getBoundingClientRect();
+      zoomAt(rect.width / 2, rect.height / 2, -0.2);
+    });
+
+    toggleSidebarBtn.addEventListener("click", () => {
+      sidebarEl.classList.toggle("collapsed");
+      toggleSidebarBtn.textContent = sidebarEl.classList.contains("collapsed") ? "＋" : "－";
+    });
+
+    togglePopupsCheckbox.addEventListener("change", () => {
+      draw();
+    });
+    togglePopupsLabelBtn.addEventListener("click", () => {
+      togglePopupsCheckbox.checked = !togglePopupsCheckbox.checked;
+      draw();
+    });
+
+    copyBtn.addEventListener("click", async () => {
+      if (bases.length === 0) {
+        alert("コピーする基地がありません。");
+        return;
+      }
+      const lines = bases.map(b => {
+        const alliance = allianceMap[b.allianceKey] || ALLIANCES[0];
+        return `${alliance.name}\t${b.name}\tX${b.anchor.x} Y${b.anchor.y}`;
+      });
+      const text = lines.join("\n");
+      try {
+        await navigator.clipboard.writeText(text);
+        alert("同盟名・基地名・座標をコピーしました。");
+      } catch (e) {
+        console.warn(e);
+        alert("クリップボードへのコピーに失敗しました。");
+      }
+    });
+
+    function moveBaseToGrid(baseId, gx, gy) {
+      const base = bases.find(b => b.id === baseId);
+      if (!base) return;
+      const cells = createBaseCellsForAnchor(gx, gy, baseId);
+      if (!cells) return;
+      base.cells = cells;
+      base.anchor = { x: gx, y: gy };
+      saveBases();
+      updateBaseListUI();
+      draw();
+    }
+
+    function hexToRgba(hex, alpha) {
+      let c = hex.replace("#", "");
+      if (c.length === 3) {
+        c = c.split("").map(ch => ch + ch).join("");
+      }
+      const r = parseInt(c.slice(0,2), 16);
+      const g = parseInt(c.slice(2,4), 16);
+      const b = parseInt(c.slice(4,6), 16);
+      return `rgba(${r},${g},${b},${alpha})`;
+    }
   </script>
 </body>
 </html>
