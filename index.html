@@ -72,6 +72,7 @@
       display: flex;
       flex-direction: column;
       box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+      transition: max-height 0.2s ease, padding 0.2s ease;
     }
     .sidebar-header {
       display: flex;
@@ -106,6 +107,14 @@
       background: rgba(255,255,255,0.26);
     }
 
+    /* 折りたたみボタン */
+    #toggle-sidebar {
+      font-weight: 700;
+      padding: 2px 7px;
+      min-width: 24px;
+      text-align: center;
+    }
+
     #base-list {
       list-style: none;
       margin: 0;
@@ -117,6 +126,16 @@
       margin-top: 6px;
       font-size: 10px;
       opacity: 0.75;
+    }
+
+    /* 折りたたみ時 */
+    .sidebar.collapsed {
+      max-height: 48px;
+      padding-bottom: 6px;
+    }
+    .sidebar.collapsed #base-list,
+    .sidebar.collapsed .sidebar-note {
+      display: none;
     }
 
     #base-list li.base-item {
@@ -232,15 +251,16 @@
     <div class="sidebar-header">
       <div class="sidebar-title">基地一覧（リスト行ダブルクリックで編集）</div>
       <div class="sidebar-actions">
-        <button id="export-btn">エクスポート</button>
-        <button id="import-btn">インポート</button>
+        <button id="toggle-sidebar">－</button>
+        <button id="export-btn">EX</button>
+        <button id="import-btn">IM</button>
         <input type="file" id="import-file" accept="application/json" style="display:none" />
       </div>
     </div>
     <ul id="base-list"></ul>
     <div class="sidebar-note">
       ・マップ：空きマスをダブルクリックで基地追加 / 基地ドラッグで移動 / 基地ダブルクリックで名前変更 or 削除<br>
-      ・状態・レベル・サムネは Firestore に保存され、全端末で共有されます<br>
+      ・状態・レベル・サムネは Firestore に保存され、全端末で共有されます（ローカルにもバックアップ保存）<br>
       ・エクスポートで JSON をダウンロード、インポートで読み込み
     </div>
   </div>
@@ -256,7 +276,7 @@
     …
   </div>
 
-  <!-- ここから全部 type="module" にして Firebase + Firestore + マップ処理を統合 -->
+  <!-- Firebase + Firestore + マップ処理 -->
   <script type="module">
     // ===== Firebase SDK =====
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
@@ -270,7 +290,7 @@
       serverTimestamp
     } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
-    // --- Firebase 設定（そのまま使う） ---
+    // --- Firebase 設定 ---
     const firebaseConfig = {
       apiKey: "AIzaSyB_whPaNOu9Lw7i7-j14UgjFtwExB8aQvk",
       authDomain: "hex-map-project.firebaseapp.com",
@@ -284,7 +304,7 @@
     const firebaseApp = initializeApp(firebaseConfig);
     getAnalytics(firebaseApp);
     const db = getFirestore(firebaseApp);
-    const mapDocRef = doc(db, "maps", "globalMap"); // ★ ここが共有先
+    const mapDocRef = doc(db, "maps", "globalMap"); // 共有用ドキュメント
 
     // ===== DOM 取得 =====
     const canvas = document.getElementById("map-canvas");
@@ -296,6 +316,8 @@
     const importBtn = document.getElementById("import-btn");
     const importFileInput = document.getElementById("import-file");
     const hintTextEl = document.getElementById("hint-text");
+    const sidebarEl = document.querySelector(".sidebar");
+    const toggleSidebarBtn = document.getElementById("toggle-sidebar");
 
     // ===== 基本設定 =====
     const HEX_SIZE = 20;
@@ -308,6 +330,9 @@
     const HEX_HORIZ_SPACING = HEX_WIDTH;
 
     const EDGE_THICKNESS_WORLD = HEX_SIZE * 0.8;
+
+    // ローカルバックアップ用キー
+    const STORAGE_KEY = "hexmap_bases_firestore_backup";
 
     let scale = 0.35;
     let offsetX = 0;
@@ -327,6 +352,9 @@
     // 基地一覧 {id, name, cells:[{x,y}], anchor:{x,y}, level, status, thumb}
     const bases = [];
     let baseCount = 0;
+
+    // Firestoreエラーを何度も alert しないようにするフラグ
+    let firestoreErrorShown = false;
 
     // 首都中心と表示半径（首都±50マス）
     const CAPITAL_CENTER_X = 500;
@@ -407,10 +435,10 @@
       const isMobile = window.innerWidth <= 768;
       if (isMobile) {
         hintTextEl.textContent =
-          "📱 1本指ドラッグで移動 / ピンチイン・アウトでズーム / タップでセル選択 / 空きマスをダブルタップで基地追加（機種によっては長押し＋タップ） / 基地をドラッグで移動 / 基地ラベルに状態・レベル・座標を表示";
+          "📱 1本指ドラッグで移動 / ピンチイン・アウトでズーム / タップでセル選択 / 空きマスをダブルタップで基地追加（機種によっては長押し＋タップ） / 基地をドラッグで移動 / 左上ボタンで基地一覧を開閉";
       } else {
         hintTextEl.textContent =
-          "🖱 ドラッグ移動 / ホイールズーム / クリックで X,Y 選択 / 空きマスをダブルクリックで基地追加 / 基地マスをダブルクリックで名前変更 or 削除 / 基地をドラッグで移動（砂漠エリア・芝生エリア / 座標と参加状態は基地の上下に表示）";
+          "🖱 ドラッグ移動 / ホイールズーム / クリックで X,Y 選択 / 空きマスをダブルクリックで基地追加 / 基地マスをダブルクリックで名前変更 or 削除 / 基地をドラッグで移動 / 左上ボタンで基地一覧を開閉";
       }
     }
     window.addEventListener("resize", updateHintText);
@@ -544,7 +572,7 @@
       }
     }
 
-    // ===== Firestore 保存・同期 =====
+    // ===== 保存・同期（Firestore + ローカルバックアップ） =====
     function makeSerializableData() {
       return {
         bases: bases.map(b => ({
@@ -558,13 +586,40 @@
       };
     }
 
+    function saveLocalBackup() {
+      const data = makeSerializableData();
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      } catch (e) {
+        console.warn("localStorage backup error:", e);
+      }
+    }
+
+    function loadLocalBackup() {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      try {
+        const data = JSON.parse(raw);
+        applyBasesFromRemote(data);
+      } catch (e) {
+        console.warn("local backup parse error:", e);
+      }
+    }
+
     async function saveBases() {
       const data = makeSerializableData();
+      // 先にローカルバックアップ
+      saveLocalBackup();
+
       data.updatedAt = serverTimestamp();
       try {
         await setDoc(mapDocRef, data);
       } catch (e) {
         console.warn("saveBases Firestore error:", e);
+        if (!firestoreErrorShown) {
+          firestoreErrorShown = true;
+          alert("Firebase Firestore への保存に失敗しました。\nネットワークまたはセキュリティルールを確認してください。\n（この端末にはローカルバックアップ済み）");
+        }
       }
     }
 
@@ -591,22 +646,33 @@
       draw();
     }
 
-    // 起動時に Firestore から現在データ取得 + リアルタイム購読
+    // 起動時：Firestore → ダメならローカルバックアップ
     (async () => {
       try {
         const snap = await getDoc(mapDocRef);
         if (snap.exists()) {
           applyBasesFromRemote(snap.data());
+        } else {
+          // ドキュメントが無い場合はローカルバックアップを試す
+          loadLocalBackup();
         }
       } catch (e) {
         console.warn("initial getDoc error:", e);
+        loadLocalBackup();
       }
 
-      onSnapshot(mapDocRef, (snap) => {
-        if (!snap.exists()) return;
-        // 自分が saveBases したときも飛んでくるが、そのまま上書きでOK
-        applyBasesFromRemote(snap.data());
-      });
+      // リアルタイム購読（エラー時はローカルバックアップへ）
+      onSnapshot(
+        mapDocRef,
+        (snap) => {
+          if (!snap.exists()) return;
+          applyBasesFromRemote(snap.data());
+        },
+        (err) => {
+          console.warn("onSnapshot error:", err);
+          loadLocalBackup();
+        }
+      );
     })();
 
     // ===== インポート／エクスポート =====
@@ -634,7 +700,7 @@
         });
       });
       baseCount = bases.length;
-      saveBases(); // Firestore へ反映
+      saveBases(); // Firestore + ローカルに反映
     }
 
     function exportBasesToFile() {
@@ -672,6 +738,12 @@
     exportBtn.addEventListener("click", exportBasesToFile);
     importBtn.addEventListener("click", () => importFileInput.click());
     importFileInput.addEventListener("change", handleImportFile);
+
+    // ===== 折りたたみボタン =====
+    toggleSidebarBtn.addEventListener("click", () => {
+      const collapsed = sidebarEl.classList.toggle("collapsed");
+      toggleSidebarBtn.textContent = collapsed ? "＋" : "－";
+    });
 
     // ===== 基地メタ編集 =====
     function editBaseMeta(base) {
