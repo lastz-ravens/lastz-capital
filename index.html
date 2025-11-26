@@ -3,6 +3,16 @@
 <head>
   <meta charset="UTF-8" />
   <title>284 Capital</title>
+<!-- ▼ favicon（PNG） -->
+<link rel="icon" type="image/png" href="favicon.png">
+
+<!-- ▼ iPhone / iPad ホーム画面追加用（PNG推奨：180×180） -->
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+
+<!-- ▼ iOS Safari 設定（ステータスバー色など） -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
   <!-- ★ スマホでちゃんとスマホ版レイアウトになるように -->
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
   <style>
@@ -443,27 +453,80 @@
     const VIEW_MIN_Y = Math.max(0, CAPITAL_CENTER_Y - VIEW_RADIUS);
     const VIEW_MAX_Y = Math.min(GRID_MAX_Y, CAPITAL_CENTER_Y + VIEW_RADIUS);
 
-    const ALLIANCES = [
-      {
-        key: "B777",
-        name: "B777",
-        color: "#ffcc00",
-        textColor: "#201500",
-        members: [
-          "SuperZeus","Ram","ponsu","すぎっしー","NEXUS21","neku-ra","Crazy楊Frog",
-          "GENLuckyTrigger","マナ","Ramen-X","やちこ","ヨホホホホ","Lamawa","Carna the God","jun33",
-          "オーシマン","るんず","WDギャン","Hans 23","アカサ","えび","ステカセ王","ケイー","Yanoyano",
-          "赤ヘル","タカちゃん","RUKA0806","ポル","yanchaaan","zerozerozero","アルアル","M731","Vikara",
-          "RUSK222","JoJo11","フランメ","Happyぼっち","keioka","みにこり","キャノン","靈魂拷問者","迷子",
-          "simon-nu","まむし","OneTop","しまんちゅ","Vivihana","PIPECUT","ロッシー","Ra-Men-Man","yusukerion",
-          "onaka","xJISOOx","れみす","ヴォーグ","mr344","浮亂苦","Nescop","irohoma","くまみーん","亞丘?斯",
-          "岡ティー","アイアイ","サムエル","もえご","QQ27","elchaaaan","Coffee jelly","ぺけたん","SEELE",
-          "mamimumemo","あこまき","ジャン","1m2","ユウディ","ウニいくら","いろはす","Tnation","バイソン",
-          "たけむー","CraZyLiOn","アジング","lupiX","nyu-ha-to","＊MISERY＊","もーー","Sakura0207","ピザコーラ",
-          "ronrico","余韻","GSX1300R"
-        ]
-      }
-    ];
+// ★ 不特定多数用：敵・味方 1000人分を自動生成
+const ENEMY_MEMBERS = Array.from({ length: 1000 }, (_, i) =>
+  `敵${String(i + 1).padStart(3, "0")}`   // 敵001, 敵002, ...
+);
+
+const ALLY_MEMBERS = Array.from({ length: 1000 }, (_, i) =>
+  `味方${String(i + 1).padStart(3, "0")}` // 味方001, 味方002, ...
+);
+
+const ALLIANCES = [
+  {
+    key: "B777",
+    name: "B777",
+    color: "#ffcc00",
+    textColor: "#201500",
+    members: [
+      "SuperZeus","Ram","ponsu","すぎっしー","NEXUS21","neku-ra","Crazy楊Frog",
+      "GENLuckyTrigger","マナ","Ramen-X","やちこ","ヨホホホホ","Lamawa","Carna the God","jun33",
+      "オーシマン","るんず","WDギャン","Hans 23","アカサ","えび","ステカセ王","ケイー","Yanoyano",
+      "赤ヘル","タカちゃん","RUKA0806","ポル","yanchaaan","zerozerozero","アルアル","M731","Vikara",
+      "RUSK222","JoJo11","フランメ","Happyぼっち","keioka","みにこり","キャノン","靈魂拷問者","迷子",
+      "simon-nu","まむし","OneTop","しまんちゅ","Vivihana","PIPECUT","ロッシー","Ra-Men-Man","yusukerion",
+      "onaka","xJISOOx","れみす","ヴォーグ","mr344","浮亂苦","Nescop","irohoma","くまみーん","亞丘?斯",
+      "岡ティー","アイアイ","サムエル","もえご","QQ27","elchaaaan","Coffee jelly","ぺけたん","SEELE",
+      "mamimumemo","あこまき","ジャン","1m2","ユウディ","ウニいくら","いろはす","Tnation","バイソン",
+      "たけむー","CraZyLiOn","アジング","lupiX","nyu-ha-to","＊MISERY＊","もーー","Sakura0207","ピザコーラ",
+      "ronrico","余韻","GSX1300R"
+    ]
+  },
+
+  // ★ EclA を追加
+  {
+    key: "EclA",
+    name: "EclA",
+    color: "#66ccff",
+    textColor: "#002233",
+    members: [
+      "伏黒 恵","冨岡 義勇","RENOVATIO","reaper777","Lucien Dodsa","はるちゃん","D0NKI호테",
+      "ダンテ　G","Jabol86","DV 디뷔","온새결","c-137","SimpleDude","まるる","以蔵 -IZO-",
+      "はだて","岳仔","バトウアン","RaineForest","Nishi7","hajime77777","Nobodymeow",
+      "CORONELNEMO","조다슬남편","v끝판대장v","めいちゃん","NAT-","현대제철","Squidward jr",
+      "AINS","RAVI10","Kori77","SeoulGirl","User2abcd","makonosuke","Wolfdog Walker",
+      "Kiki777","nelipot","StoyanS","VIadimir Fido","Suokki","Jesterko","t imo",
+      "Machang Bubok","plwro","CーPON","RastaRob","CRAZY H","SoupySuperStar","Dentrival",
+      "Z‌‌","KANASAl","godjji","cubelee","DoMToDd","Craigクレグ","Aiaaahhh","fun die ?",
+      "PaladinFriend","omjmj","日出打金","duberman","アビー","White Paladin",
+      "•BadKitty18","MegaDragonite","にぃ","R0KAN","香ばしい","Sky18","Tiara333",
+      "Taro12","masa1121","simply red","Mirellle","Diegomv","・LUZ","SurvivorREM",
+      "AlexNesty","Idealize","Decade 2","Mos M Zer Lor","Jeyci","DiegoX","anhcatim",
+      "Emmanuel Wick","야찰퀸","poem0320","Crimson-Sky","Noval Yoko","Lariatte",
+      "Maelle SZ","조다슬남편"
+    ]
+  },   // ← ★ここにカンマが必要！
+
+  // ★ 不特定多数用：敵同盟（1000人分）
+  {
+    key: "ENEMY",
+    name: "敵同盟",
+    color: "#ff6666",
+    textColor: "#2a0000",
+    members: ENEMY_MEMBERS
+  },
+
+  // ★ 不特定多数用：味方同盟（1000人分）
+  {
+    key: "ALLY",
+    name: "味方同盟",
+    color: "#66ff99",
+    textColor: "#002011",
+    members: ALLY_MEMBERS
+  }
+];
+
+
     const allianceMap = {};
     ALLIANCES.forEach(a => { allianceMap[a.key] = a; });
 
@@ -1186,8 +1249,8 @@
         const statusLine = `${statusText} ${tierText} ${levelText}`;
         const coordText = `X${anchor.x} Y${anchor.y}`;
 
-        const baseFontSize = Math.max(11, Math.min(18, 14 * scale * 2.5));
-        const lineHeight = baseFontSize * 1.15;
+        const baseFontSize = Math.max(6, Math.min(12, 10 * scale * 2.0));
+        const lineHeight = baseFontSize * 1.05;
 
         ctx.font = `${baseFontSize}px system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif`;
 
@@ -1197,8 +1260,8 @@
         const textWidth = Math.max(nameWidth, statusWidth, coordWidth);
 
         const iconSize = lineHeight * 1.8;
-        const paddingX = 6 * scale * 2;
-        const paddingY = 4 * scale * 2;
+        const paddingX = 4 * scale * 1.5;
+        const paddingY = 3 * scale * 1.5;
 
         const panelWidth = Math.max(textWidth, iconSize) + paddingX * 2;
         const panelHeight = paddingY * 2 + iconSize + 4 + lineHeight * 3;
