@@ -15,7 +15,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
   <!-- ★ スマホでちゃんとスマホ版レイアウトになるように -->
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
 
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -25,9 +25,7 @@
       background: #050608;
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       color: #f5f5f5;
-      font-size: 15px;
-      -webkit-text-size-adjust: 100%;
-      touch-action: manipulation; /* ダブルタップ拡大を抑制気味に */
+      font-size: 15px; /* ベース文字サイズUP */
     }
     #map-canvas {
       width: 100%;
@@ -35,7 +33,7 @@
       display: block;
       background: radial-gradient(circle at top, #1d2838 0, #050608 50%);
       cursor: grab;
-      touch-action: none; /* ピンチ・ドラッグなどは自前処理 */
+      touch-action: none; /* ピンチ・ダブルタップ検出用 */
     }
     #map-canvas.dragging { cursor: grabbing; }
 
@@ -47,7 +45,7 @@
       border-radius: 999px;
       background: rgba(0, 0, 0, .65);
       backdrop-filter: blur(10px);
-      font-size: 13px;
+      font-size: 13px; /* UP */
       display: flex;
       gap: 8px;
       align-items: center;
@@ -62,12 +60,12 @@
       position: fixed;
       left: 10px;
       top: 10px;
-      width: 300px;
+      width: 320px; /* 少し広め＋安定させる */
       padding: 12px;
       border-radius: 16px;
       background: rgba(0, 0, 0, 0.9);
       backdrop-filter: blur(14px);
-      font-size: 14px;
+      font-size: 14px; /* UP */
       z-index: 20;
       pointer-events: auto;
       max-height: calc(100% - 20px);
@@ -82,13 +80,18 @@
 
     .sidebar-header {
       display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-bottom: 8px;
+    }
+    .sidebar-header-top {
+      display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 6px;
-      margin-bottom: 8px;
     }
     .sidebar-title {
-      font-size: 13px;
+      font-size: 13px; /* UP */
       text-transform: uppercase;
       letter-spacing: 0.06em;
       opacity: 0.8;
@@ -96,25 +99,26 @@
     .sidebar-actions {
       display: flex;
       gap: 4px;
-      flex-shrink: 0;
-      align-items: center;
       flex-wrap: wrap;
+      align-items: center;
       justify-content: flex-end;
     }
     .sidebar-actions button {
       border: none;
       border-radius: 999px;
       padding: 3px 7px;
-      font-size: 12px;
+      font-size: 12px; /* UP */
       cursor: pointer;
       background: rgba(255,255,255,0.1);
       color: #f5f5f5;
       white-space: nowrap;
       min-width: 32px;
-      touch-action: manipulation; /* ここでも二重ズームを抑制 */
     }
     .sidebar-actions button:hover {
       background: rgba(255,255,255,0.2);
+    }
+    .sidebar-actions button.toggle-on {
+      background: rgba(44,123,229,0.9);
     }
     #toggle-sidebar {
       font-size: 14px;
@@ -139,7 +143,7 @@
 
     .sidebar-note {
       margin-top: 6px;
-      font-size: 11px;
+      font-size: 11px; /* 説明欄だけ小さめのまま */
       opacity: 0.7;
       border-top: 1px solid rgba(255,255,255,0.08);
       padding-top: 4px;
@@ -180,14 +184,14 @@
       gap: 4px;
     }
     .base-name {
-      font-size: 14px;
+      font-size: 14px; /* UP */
       font-weight: 600;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
     .base-alliance {
-      font-size: 13px;
+      font-size: 13px; /* UP */
       opacity: 0.8;
       white-space: nowrap;
     }
@@ -197,7 +201,7 @@
       align-items: center;
       margin-top: 2px;
       gap: 4px;
-      font-size: 13px;
+      font-size: 13px; /* UP */
     }
     .base-coord {
       opacity: 0.8;
@@ -209,7 +213,8 @@
     }
 
     .sidebar.collapsed #base-list-wrapper,
-    .sidebar.collapsed .sidebar-note {
+    .sidebar.collapsed .sidebar-note,
+    .sidebar.collapsed .sidebar-summary {
       display: none;
     }
 
@@ -232,21 +237,28 @@
       color: #fff;
       font-size: 22px;
       cursor: pointer;
-      touch-action: manipulation; /* ダブルタップ拡大対策 */
     }
 
-    /* ポップ表示切替 */
-    #toggle-popups-label {
+    /* ソートセレクト */
+    #sort-mode {
+      border-radius: 999px;
+      border: none;
+      padding: 3px 6px;
       font-size: 12px;
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      margin-top: 3px;
-      opacity: 0.9;
+      min-width: 80px;
     }
-    #toggle-popups {
-      width: 16px;
-      height: 16px;
+
+    .sidebar-summary {
+      margin-top: 4px;
+      font-size: 12px;
+      opacity: 0.85;
+      line-height: 1.4;
+    }
+
+    /* 全セレクト共通（文字色が背景と同化しないように） */
+    select {
+      color: #000;
+      background: #f5f5f5;
     }
 
     @media (max-width: 768px) {
@@ -286,6 +298,10 @@
       }
       .note-pc { display: none; }
       .note-sp { display: block; }
+      #sort-mode {
+        font-size: 11px;
+        padding: 3px 5px;
+      }
     }
   </style>
 </head>
@@ -294,24 +310,35 @@
 
   <div class="sidebar" id="sidebar">
     <div class="sidebar-header">
-      <div class="sidebar-title">284 Capital - 基地一覧</div>
+      <div class="sidebar-header-top">
+        <div class="sidebar-title">284 Capital - 基地一覧</div>
+        <button id="toggle-sidebar">－</button>
+      </div>
       <div class="sidebar-actions">
         <button id="copy-btn">Copy</button>
         <button id="export-btn">Exp</button>
         <button id="import-btn">Imp</button>
-        <button id="toggle-popups-label-btn">Pop</button>
-        <button id="toggle-sidebar">－</button>
+        <button id="toggle-popups-label-btn" class="toggle-on">Pop</button>
+        <button id="toggle-memo-popups-btn">Memo</button>
+
+        <!-- ソートモード選択（表記シンプルに） -->
+        <select id="sort-mode">
+          <option value="ALLIANCE">同盟</option>
+          <option value="LEVEL">Lv.</option>
+          <option value="TIER">T</option>
+          <option value="NAME">基地名</option>
+        </select>
+
         <input type="file" id="import-file" accept="application/json" style="display:none" />
       </div>
     </div>
 
     <div id="base-list-wrapper">
       <ul id="base-list"></ul>
-      <label id="toggle-popups-label">
-        <input type="checkbox" id="toggle-popups" checked />
-        マップ上に基地ポップを表示
-      </label>
     </div>
+
+    <!-- 合計表示（Lvごと・Tごと） -->
+    <div id="sidebar-summary" class="sidebar-summary"></div>
 
     <div class="sidebar-note">
       <div class="note-pc">
@@ -369,6 +396,10 @@
           <span>Tランク</span><br/>
           <select id="dlg-tier" style="width:100%; margin-top:2px; font-size:14px;"></select>
         </label>
+        <label>
+          <span>メモ</span><br/>
+          <textarea id="dlg-memo" style="width:100%; margin-top:2px; font-size:13px; height:60px;"></textarea>
+        </label>
         <div style="font-size:12px; opacity:0.7;" id="dlg-coord-text"></div>
       </div>
       <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:12px;">
@@ -399,8 +430,8 @@
     const toggleSidebarBtn = document.getElementById("toggle-sidebar");
     const zoomInBtn = document.getElementById("zoom-in");
     const zoomOutBtn = document.getElementById("zoom-out");
-    const togglePopupsCheckbox = document.getElementById("toggle-popups");
     const togglePopupsLabelBtn = document.getElementById("toggle-popups-label-btn");
+    const toggleMemoPopupsBtn = document.getElementById("toggle-memo-popups-btn");
 
     const exportBtn = document.getElementById("export-btn");
     const importBtn = document.getElementById("import-btn");
@@ -412,10 +443,20 @@
     const dlgStatus = document.getElementById("dlg-status");
     const dlgLevel = document.getElementById("dlg-level");
     const dlgTier = document.getElementById("dlg-tier");
+    const dlgMemo = document.getElementById("dlg-memo");
     const dlgCoordText = document.getElementById("dlg-coord-text");
     const dlgCancel = document.getElementById("dlg-cancel");
     const dlgOk = document.getElementById("dlg-ok");
     const dlgDelete = document.getElementById("dlg-delete");
+
+    // ソートモード & 合計表示
+    const sortModeSelect = document.getElementById("sort-mode");
+    const summaryEl = document.getElementById("sidebar-summary");
+    let sortMode = "ALLIANCE";
+
+    // Pop表示状態
+    let showBasePopups = true;
+    let showMemoPopups = false;
 
     const HEX_SIZE = 20;
     const GRID_MAX_X = 999;
@@ -425,7 +466,7 @@
     const HEX_VERT_SPACING  = 1.5 * HEX_SIZE;
     const HEX_HORIZ_SPACING = HEX_WIDTH;
     const EDGE_THICKNESS_WORLD = HEX_SIZE * 0.8;
-    const STORAGE_KEY = "hexmap_bases_v7";
+    const STORAGE_KEY = "hexmap_bases_v8"; // memo追加でバージョンアップ
 
     let scale = 0.35;
     let offsetX = 0;
@@ -448,6 +489,11 @@
     let draggingBaseId = null;
     let lastDragCell = null;
 
+    // リスト側ダブルタップ検出
+    let lastListTapTime = 0;
+    let lastListTapId = null;
+    const LIST_TAP_DELAY = 320;
+
     const bases = [];
     let baseCount = 0;
 
@@ -458,11 +504,6 @@
     const VIEW_MAX_X = Math.min(GRID_MAX_X, CAPITAL_CENTER_X + VIEW_RADIUS);
     const VIEW_MIN_Y = Math.max(0, CAPITAL_CENTER_Y - VIEW_RADIUS);
     const VIEW_MAX_Y = Math.min(GRID_MAX_Y, CAPITAL_CENTER_Y + VIEW_RADIUS);
-
-    // ★ キャンバスのCSS上のサイズとDPR
-    let canvasCssWidth = 0;
-    let canvasCssHeight = 0;
-    let canvasDpr = window.devicePixelRatio || 1;
 
     // ★ 不特定多数用：敵・味方 1000人分を自動生成
     const ENEMY_MEMBERS = Array.from({ length: 1000 }, (_, i) =>
@@ -589,19 +630,14 @@
 
     function resizeCanvas() {
       const rect = canvas.getBoundingClientRect();
-      canvasCssWidth = rect.width;
-      canvasCssHeight = rect.height;
-      canvasDpr = window.devicePixelRatio || 1;
-
-      canvas.width = canvasCssWidth * canvasDpr;
-      canvas.height = canvasCssHeight * canvasDpr;
-      ctx.setTransform(canvasDpr, 0, 0, canvasDpr, 0, 0); // 論理座標＝CSSpx
+      canvas.width = rect.width;
+      canvas.height = rect.height;
 
       if (!resizeCanvas.initialized) {
         resizeCanvas.initialized = true;
         const midWorld = gridToWorld(CAPITAL_CENTER_X, CAPITAL_CENTER_Y);
-        offsetX = canvasCssWidth / 2 - midWorld.x * scale;
-        offsetY = canvasCssHeight / 2 - midWorld.y * scale;
+        offsetX = canvas.width / 2 - midWorld.x * scale;
+        offsetY = canvas.height / 2 - midWorld.y * scale;
 
         desertPolygonWorld = desertVerticesGrid.map(v => gridToWorld(v.x, v.y));
         blockedPolygonWorld = blockedVerticesGrid.map(v => gridToWorld(v.x, v.y));
@@ -725,6 +761,7 @@
           status: b.status,
           level: b.level,
           tier: b.tier,
+          memo: b.memo || "",
           anchor: b.anchor
         }))
       };
@@ -753,6 +790,7 @@
             status: rec.status || "不明",
             level: rec.level ?? null,
             tier: rec.tier || "T1",
+            memo: rec.memo || "",
             cells,
             anchor: rec.anchor
           });
@@ -782,6 +820,7 @@
           status: rec.status || "不明",
           level: rec.level ?? null,
           tier: rec.tier || "T1",
+          memo: rec.memo || "",
           cells,
           anchor: rec.anchor
         });
@@ -854,6 +893,7 @@
         dlgTier.appendChild(opt);
       }
     }
+
     function updateNameOptionsForAlliance(allianceKey, currentName = null) {
       const alliance = allianceMap[allianceKey];
       dlgName.innerHTML = "";
@@ -879,6 +919,7 @@
         dlgName.appendChild(opt);
       }
     }
+
     function openBaseDialogForCreate(cell) {
       dialogMode = "create";
       dialogCell = cell;
@@ -891,10 +932,12 @@
       updateNameOptionsForAlliance(defaultAllianceKey, null);
       dlgLevel.value = "30";
       dlgTier.value = "T10";
+      dlgMemo.value = "";
 
       dlgCoordText.textContent = `配置セル: X${cell.x} Y${cell.y}`;
       baseDialog.style.display = "flex";
     }
+
     function openBaseDialogForEdit(base) {
       dialogMode = "edit";
       dialogEditingBase = base;
@@ -907,15 +950,18 @@
       dlgStatus.value = base.status || "不明";
       if (base.level != null) dlgLevel.value = String(base.level);
       dlgTier.value = base.tier || "T1";
+      dlgMemo.value = base.memo || "";
 
       dlgCoordText.textContent = `配置セル: X${base.anchor.x} Y${base.anchor.y}`;
       baseDialog.style.display = "flex";
     }
+
     function closeBaseDialog() {
       baseDialog.style.display = "none";
       dialogCell = null;
       dialogEditingBase = null;
     }
+
     dlgAlliance.addEventListener("change", () => {
       const key = dlgAlliance.value;
       const currentName = dialogEditingBase ? dialogEditingBase.name : null;
@@ -936,6 +982,7 @@
       const status = dlgStatus.value || "不明";
       const level = Number(dlgLevel.value || "0");
       const tier = dlgTier.value || "T1";
+      const memo = dlgMemo.value.trim();
 
       if (!dialogCell) { closeBaseDialog(); return; }
       const gx = dialogCell.x;
@@ -955,6 +1002,7 @@
           status,
           level: isNaN(level) ? null : level,
           tier,
+          memo,
           cells,
           anchor: { x: gx, y: gy }
         });
@@ -970,6 +1018,7 @@
         dialogEditingBase.status = status;
         dialogEditingBase.level = isNaN(level) ? null : level;
         dialogEditingBase.tier = tier;
+        dialogEditingBase.memo = memo;
         dialogEditingBase.cells = cells;
         dialogEditingBase.anchor = { x: gx, y: gy };
       }
@@ -980,23 +1029,117 @@
       closeBaseDialog();
     });
 
-    function updateBaseListUI() {
-      baseListEl.innerHTML = "";
-      const sorted = [...bases].sort((a, b) => {
-        if (a.allianceKey !== b.allianceKey) {
-          return a.allianceKey.localeCompare(b.allianceKey);
-        }
+    // ===== ソート & 合計用ユーティリティ =====
+    function tierToNum(t) {
+      return Number(String(t || "T1").replace("T", "")) || 0;
+    }
+
+    function sortBasesForList(arr) {
+      return arr.slice().sort((a, b) => {
+        const allianceA = allianceMap[a.allianceKey] || ALLIANCES[0];
+        const allianceB = allianceMap[b.allianceKey] || ALLIANCES[0];
+
+        const an = allianceA.name || "";
+        const bn = allianceB.name || "";
+        const nameA = a.name || "";
+        const nameB = b.name || "";
         const la = a.level || 0;
         const lb = b.level || 0;
-        if (la !== lb) return lb - la;
-        return (a.name || "").localeCompare(b.name || "");
+        const ta = tierToNum(a.tier);
+        const tb = tierToNum(b.tier);
+
+        switch (sortMode) {
+          case "NAME": {       // 基地名▶同盟
+            if (nameA !== nameB) return nameA.localeCompare(nameB, "ja");
+            if (an !== bn) return an.localeCompare(bn, "ja");
+            return lb - la;
+          }
+          case "LEVEL": {      // Lv高▶同盟▶基地
+            if (la !== lb) return lb - la;
+            if (an !== bn) return an.localeCompare(bn, "ja");
+            return nameA.localeCompare(nameB, "ja");
+          }
+          case "TIER": {       // T高▶Lv▶同盟▶基地
+            if (ta !== tb) return tb - ta;
+            if (la !== lb) return lb - la;
+            if (an !== bn) return an.localeCompare(bn, "ja");
+            return nameA.localeCompare(nameB, "ja");
+          }
+          case "ALLIANCE":
+          default: {           // 同盟▶基地▶Lv▶T
+            if (an !== bn) return an.localeCompare(bn, "ja");
+            if (nameA !== nameB) return nameA.localeCompare(nameB, "ja");
+            if (la !== lb) return lb - la;
+            return tb - ta;
+          }
+        }
       });
+    }
+
+    function updateSummary() {
+      if (!summaryEl) return;
+
+      const totalBases = bases.length;
+
+      const lvCounts = Array(30).fill(0); // index 0=>Lv1
+      const tCounts = Array(10).fill(0);  // index 0=>T1
+
+      bases.forEach(b => {
+        if (typeof b.level === "number" && !isNaN(b.level) && b.level >= 1 && b.level <= 30) {
+          lvCounts[b.level - 1]++;
+        }
+        const t = tierToNum(b.tier);
+        if (t >= 1 && t <= 10) {
+          tCounts[t - 1]++;
+        }
+      });
+
+      const lvParts = [];
+      for (let lv = 30; lv >= 1; lv--) {
+        const c = lvCounts[lv - 1];
+        if (c > 0) lvParts.push(`Lv.${lv}:${c}`);
+      }
+      const tParts = [];
+      for (let t = 10; t >= 1; t--) {
+        const c = tCounts[t - 1];
+        if (c > 0) tParts.push(`T${t}:${c}`);
+      }
+
+      const lvText = lvParts.length ? lvParts.join(" / ") : "なし";
+      const tText  = tParts.length ? tParts.join(" / ") : "なし";
+
+      summaryEl.innerHTML =
+        `基地数: ${totalBases}<br>` +
+        `Lv: ${lvText}<br>` +
+        `T: ${tText}`;
+    }
+
+    function focusOnBase(b) {
+      if (!b || !b.anchor) return;
+      const world = gridToWorld(b.anchor.x, b.anchor.y);
+      offsetX = canvas.width / 2 - world.x * scale;
+      offsetY = canvas.height / 2 - world.y * scale;
+      selectedCell = { x: b.anchor.x, y: b.anchor.y };
+      draw();
+    }
+
+    sortModeSelect.addEventListener("change", () => {
+      sortMode = sortModeSelect.value;
+      updateBaseListUI();
+    });
+
+    // ===== リストUI =====
+    function updateBaseListUI() {
+      baseListEl.innerHTML = "";
+
+      const sorted = sortBasesForList(bases);
 
       sorted.forEach(b => {
         const li = document.createElement("li");
         li.className = "base-item";
 
         const alliance = allianceMap[b.allianceKey] || ALLIANCES[0];
+
         const dot = document.createElement("div");
         dot.className = "base-color-dot";
         dot.style.background = alliance.color;
@@ -1027,8 +1170,8 @@
 
         const tagSpan = document.createElement("span");
         tagSpan.className = "base-tagline";
-        const lv = b.level != null ? `Lv.${b.level}` : "Lv.-";
-        tagSpan.textContent = `${b.status} ${b.tier} ${lv}`;
+        const lvText = b.level != null ? `Lv.${b.level}` : "Lv.-";
+        tagSpan.textContent = `${b.status} ${b.tier} ${lvText}`;
 
         metaRow.appendChild(coordSpan);
         metaRow.appendChild(tagSpan);
@@ -1039,13 +1182,27 @@
         li.appendChild(dot);
         li.appendChild(info);
 
-        li.addEventListener("dblclick", (e) => {
+        // クリック: フォーカス & ダブルタップで編集（PC/スマホ共通）
+        li.addEventListener("click", (e) => {
           e.stopPropagation();
-          openBaseDialogForEdit(b);
+
+          focusOnBase(b);
+
+          const now = Date.now();
+          if (lastListTapId === b.id && now - lastListTapTime < LIST_TAP_DELAY) {
+            openBaseDialogForEdit(b);
+            lastListTapTime = 0;
+            lastListTapId = null;
+          } else {
+            lastListTapId = b.id;
+            lastListTapTime = now;
+          }
         });
 
         baseListEl.appendChild(li);
       });
+
+      updateSummary();
     }
 
     function drawHexCenter(wx, wy, strokeStyle, fillStyle, lineWidth = 1) {
@@ -1080,8 +1237,8 @@
     }
 
     function drawGrid() {
-      const w = canvasCssWidth;
-      const h = canvasCssHeight;
+      const w = canvas.width;
+      const h = canvas.height;
       const margin = 80 / scale;
       const topLeftWorld = screenToWorld(-margin, -margin);
       const bottomRightWorld = screenToWorld(w + margin, h + margin);
@@ -1241,7 +1398,7 @@
     }
 
     function drawBaseLabels() {
-      if (!togglePopupsCheckbox.checked) return;
+      if (!showBasePopups) return;
       ctx.save();
 
       bases.forEach(b => {
@@ -1329,13 +1486,66 @@
       ctx.restore();
     }
 
+    // メモ専用ポップ
+    function drawMemoPopups() {
+      if (!showMemoPopups) return;
+      ctx.save();
+
+      bases.forEach(b => {
+        if (!b.memo) return;
+        const anchor = b.anchor || b.cells[0];
+        const world = gridToWorld(anchor.x, anchor.y);
+        const screen = worldToScreen(world.x, world.y);
+
+        const text = b.memo;
+        const baseFontSize = Math.max(8, Math.min(14, 11 * scale * 1.5));
+        ctx.font = `${baseFontSize}px system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif`;
+        ctx.textBaseline = "top";
+        ctx.textAlign = "left";
+
+        const maxWidth = 160 * scale;
+        let display = text;
+        if (ctx.measureText(display).width > maxWidth) {
+          while (display.length > 0 && ctx.measureText(display + "…").width > maxWidth) {
+            display = display.slice(0, -1);
+          }
+          display += "…";
+        }
+
+        const paddingX = 4 * scale;
+        const paddingY = 3 * scale;
+        const textWidth = ctx.measureText(display).width;
+        const boxWidth = textWidth + paddingX * 2;
+        const boxHeight = baseFontSize + paddingY * 2;
+
+        const boxX = screen.x + HEX_SIZE * scale * 0.8;
+        const boxY = screen.y - boxHeight / 2;
+
+        ctx.globalAlpha = 0.9;
+        ctx.fillStyle = "rgba(0,0,0,0.8)";
+        drawRoundedRect(ctx, boxX, boxY, boxWidth, boxHeight, 4);
+        ctx.fill();
+        ctx.globalAlpha = 1.0;
+        ctx.strokeStyle = "rgba(255,255,255,0.15)";
+        ctx.lineWidth = 1;
+        drawRoundedRect(ctx, boxX, boxY, boxWidth, boxHeight, 4);
+        ctx.stroke();
+
+        ctx.fillStyle = "rgba(255,255,190,0.96)";
+        ctx.fillText(display, boxX + paddingX, boxY + paddingY);
+      });
+
+      ctx.restore();
+    }
+
     function draw() {
-      ctx.clearRect(0, 0, canvasCssWidth, canvasCssHeight);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
       drawGrid();
       drawDesertOutline();
       drawBlockedOutline();
       drawRegionLabels();
       drawBaseLabels();
+      drawMemoPopups();
 
       zoomDisplay.textContent = Math.round(scale * 100) + "%";
       cellDisplay.textContent = selectedCell
@@ -1516,41 +1726,31 @@
       offsetY += (worldAfter.y - worldBefore.y) * scale;
       draw();
     }
-
-    // ★ ズームボタン：タッチとクリックの二重発火を防ぎつつダブルタップ拡大を抑える
-    let lastZoomTouchTime = 0;
-
-    function zoomButtonClick(delta) {
-      const now = Date.now();
-      if (now - lastZoomTouchTime < 250) return; // 直前にtouchstartで処理していたらスキップ
-      const rect = canvas.getBoundingClientRect();
-      zoomAt(rect.width / 2, rect.height / 2, delta);
-    }
-
-    zoomInBtn.addEventListener("click", () => zoomButtonClick(0.2));
-    zoomOutBtn.addEventListener("click", () => zoomButtonClick(-0.2));
-
-    zoomInBtn.addEventListener("touchstart", (e) => {
-      e.preventDefault();
-      lastZoomTouchTime = Date.now();
+    zoomInBtn.addEventListener("click", () => {
       const rect = canvas.getBoundingClientRect();
       zoomAt(rect.width / 2, rect.height / 2, 0.2);
-    }, { passive: false });
-
-    zoomOutBtn.addEventListener("touchstart", (e) => {
-      e.preventDefault();
-      lastZoomTouchTime = Date.now();
+    });
+    zoomOutBtn.addEventListener("click", () => {
       const rect = canvas.getBoundingClientRect();
       zoomAt(rect.width / 2, rect.height / 2, -0.2);
-    }, { passive: false });
+    });
 
     toggleSidebarBtn.addEventListener("click", () => {
       sidebarEl.classList.toggle("collapsed");
       toggleSidebarBtn.textContent = sidebarEl.classList.contains("collapsed") ? "＋" : "－";
     });
-    togglePopupsCheckbox.addEventListener("change", draw);
+
+    // Popボタン
     togglePopupsLabelBtn.addEventListener("click", () => {
-      togglePopupsCheckbox.checked = !togglePopupsCheckbox.checked;
+      showBasePopups = !showBasePopups;
+      togglePopupsLabelBtn.classList.toggle("toggle-on", showBasePopups);
+      draw();
+    });
+
+    // Memoボタン
+    toggleMemoPopupsBtn.addEventListener("click", () => {
+      showMemoPopups = !showMemoPopups;
+      toggleMemoPopupsBtn.classList.toggle("toggle-on", showMemoPopups);
       draw();
     });
 
@@ -1559,14 +1759,38 @@
         alert("コピーする基地がありません。");
         return;
       }
-      const lines = bases.map(b => {
+
+      const sorted = sortBasesForList(bases);
+      const rows = sorted.map(b => {
         const alliance = allianceMap[b.allianceKey] || ALLIANCES[0];
-        return `${alliance.name}\t${b.name}\tX${b.anchor.x} Y${b.anchor.y}`;
+        return {
+          allianceName: alliance.name || "",
+          baseName: b.name || "",
+          coord: `X${b.anchor.x} Y${b.anchor.y}`
+        };
       });
+
+      const maxAllianceLen = rows.reduce((m, r) => Math.max(m, r.allianceName.length), 0);
+      const maxBaseLen     = rows.reduce((m, r) => Math.max(m, r.baseName.length), 0);
+      const maxCoordLen    = rows.reduce((m, r) => Math.max(m, r.coord.length), 0);
+
+      const padRight = (str, len) => {
+        const s = str || "";
+        return s.length >= len ? s : s + " ".repeat(len - s.length);
+      };
+
+      const lines = rows.map(r => {
+        const col1 = padRight(r.allianceName, maxAllianceLen);
+        const col2 = padRight(r.baseName,     maxBaseLen);
+        const col3 = padRight(r.coord,        maxCoordLen);
+        return `${col1}  ${col2}  ${col3}`;
+      });
+
       const text = lines.join("\n");
+
       try {
         await navigator.clipboard.writeText(text);
-        alert("同盟名・基地名・座標をコピーしました。");
+        alert("同盟・基地名・座標をコピーしました。");
       } catch (e) {
         console.warn(e);
         alert("クリップボードへのコピーに失敗しました。");
@@ -1584,6 +1808,7 @@
       updateBaseListUI();
       draw();
     }
+
     function hexToRgba(hex, alpha) {
       let c = hex.replace("#", "");
       if (c.length === 3) {
