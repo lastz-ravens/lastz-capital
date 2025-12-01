@@ -4,14 +4,18 @@
   <meta charset="UTF-8" />
   <title>284 Capital</title>
 
-  <!-- favicon / iPhone ホーム追加 -->
-  <link rel="icon" type="image/png" href="favicon.png">
-  <link rel="apple-touch-icon" href="apple-touch-icon.png">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <!-- favicon -->
+  <link rel="icon" type="image/png" href="favicon.png" />
+  <!-- iPhone ホーム画面用 -->
+  <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 
-  <!-- スマホでちゃんとスマホレイアウト -->
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+  <!-- スマホのダブルタップ拡大を禁止 -->
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
+  />
 
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -29,18 +33,18 @@
       display: block;
       background: radial-gradient(circle at top, #1d2838 0, #050608 50%);
       cursor: grab;
-      touch-action: none; /* ダブルタップ拡大を止める */
+      touch-action: none;
     }
     #map-canvas.dragging { cursor: grabbing; }
 
-    /* HUD（Zoom / Cell） */
+    /* HUD */
     .hud {
       position: fixed;
       right: 10px;
       bottom: 10px;
       padding: 7px 11px;
       border-radius: 999px;
-      background: rgba(0, 0, 0, .65);
+      background: rgba(0, 0, 0, 0.65);
       backdrop-filter: blur(10px);
       font-size: 13px;
       display: flex;
@@ -49,15 +53,15 @@
       pointer-events: none;
       z-index: 10;
     }
-    .hud span.label { opacity: .6; }
+    .hud span.label { opacity: 0.6; }
     .hud span.value { font-variant-numeric: tabular-nums; }
 
-    /* サイドバー（基地リスト＋説明） */
+    /* サイドバー */
     .sidebar {
       position: fixed;
       left: 10px;
       top: 10px;
-      width: 320px;
+      width: 340px;
       padding: 12px;
       border-radius: 16px;
       background: rgba(0, 0, 0, 0.9);
@@ -74,13 +78,12 @@
       max-height: none;
       padding: 8px 12px;
     }
-
     .sidebar-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 6px;
-      margin-bottom: 8px;
+      margin-bottom: 6px;
     }
     .sidebar-title {
       font-size: 13px;
@@ -88,54 +91,45 @@
       letter-spacing: 0.06em;
       opacity: 0.85;
     }
-    .sidebar-actions {
-      display: flex;
-      gap: 4px;
-      flex-shrink: 0;
-      align-items: center;
-      flex-wrap: wrap;
-      justify-content: flex-end;
-    }
-    .sidebar-actions button {
-      border: none;
-      border-radius: 999px;
-      padding: 3px 7px;
-      font-size: 12px;
-      cursor: pointer;
-      background: rgba(255,255,255,0.1);
-      color: #f5f5f5;
-      white-space: nowrap;
-      min-width: 30px;
-    }
-    .sidebar-actions button:hover {
-      background: rgba(255,255,255,0.2);
-    }
     #toggle-sidebar {
-      font-size: 14px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.2);
       padding: 3px 9px;
-      min-width: 28px;
+      background: rgba(0,0,0,0.9);
+      color: #f5f5f5;
+      cursor: pointer;
+      font-size: 12px;
     }
 
-    /* フィルタ・ソート行 */
-    .sidebar-controls {
+    .sidebar-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      flex-shrink: 0;
+      align-items: flex-end;
+    }
+    .toolbar-row {
       display: flex;
       flex-wrap: wrap;
-      gap: 6px;
-      margin-bottom: 6px;
-      font-size: 12px;
-    }
-    .sidebar-controls label {
-      display: flex;
-      align-items: center;
       gap: 4px;
+      justify-content: flex-end;
     }
-    .sidebar-controls select {
+    .sidebar-actions button,
+    .sidebar-actions select {
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.15);
+      padding: 3px 8px;
       font-size: 12px;
-      padding: 2px 4px;
-      background: #111;
+      background: rgba(10,10,10,0.9);
       color: #f5f5f5;
-      border-radius: 6px;
-      border: 1px solid rgba(255,255,255,0.2);
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .sidebar-actions button:hover {
+      background: rgba(255,255,255,0.15);
+    }
+    .sidebar-actions select {
+      appearance: none;
     }
 
     #base-list-wrapper {
@@ -143,8 +137,8 @@
       flex-direction: column;
       flex: 1;
       min-height: 0;
+      margin-top: 6px;
     }
-
     #base-list {
       list-style: none;
       margin: 0;
@@ -153,17 +147,17 @@
       flex: 1;
     }
 
-    .sidebar-summary {
+    .sidebar-totals {
       margin-top: 4px;
-      font-size: 11px;
-      opacity: 0.8;
+      font-size: 12px;
+      opacity: 0.9;
+      line-height: 1.4;
       border-top: 1px solid rgba(255,255,255,0.08);
       padding-top: 4px;
-      white-space: pre-line;
     }
 
     .sidebar-note {
-      margin-top: 4px;
+      margin-top: 6px;
       font-size: 11px;
       opacity: 0.7;
       border-top: 1px solid rgba(255,255,255,0.08);
@@ -186,6 +180,10 @@
     #base-list li.base-item:hover {
       background: rgba(255,255,255,0.08);
     }
+    #base-list li.base-item.selected {
+      border-color: rgba(255,221,85,0.8);
+      box-shadow: 0 0 0 1px rgba(255,221,85,0.4);
+    }
 
     .base-color-dot {
       width: 20px;
@@ -194,7 +192,6 @@
       flex-shrink: 0;
       border: 1px solid rgba(0,0,0,0.5);
     }
-
     .base-item-info {
       flex: 1;
       min-width: 0;
@@ -214,7 +211,7 @@
     }
     .base-alliance {
       font-size: 13px;
-      opacity: 0.8;
+      opacity: 0.85;
       white-space: nowrap;
     }
     .base-item-meta-row {
@@ -230,15 +227,8 @@
       white-space: nowrap;
     }
     .base-tagline {
-      opacity: 0.85;
+      opacity: 0.9;
       white-space: nowrap;
-    }
-
-    .sidebar.collapsed #base-list-wrapper,
-    .sidebar.collapsed .sidebar-controls,
-    .sidebar.collapsed .sidebar-summary,
-    .sidebar.collapsed .sidebar-note {
-      display: none;
     }
 
     /* ズームボタン */
@@ -262,28 +252,40 @@
       cursor: pointer;
     }
 
-    /* 基地ポップ / メモポップトグルボタンの状態 */
-    .toggle-on {
-      background: rgba(44, 123, 229, 0.9) !important;
+    /* ダイアログ用共通 */
+    select, input, textarea {
+      background: #111;
+      color: #f5f5f5;
+      border: 1px solid rgba(255,255,255,0.25);
+      border-radius: 8px;
+      padding: 3px 6px;
+      font-size: 14px;
     }
-    .toggle-on:hover {
-      background: rgba(80, 150, 240, 1) !important;
+
+    /* 基地追加・編集ダイアログ */
+    #base-dialog {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 30;
+      background: rgba(0,0,0,0.6);
     }
 
     @media (max-width: 768px) {
-      /* HUD は右上へ */
+      /* HUDを右上へ */
       .hud {
-        top: 8px;
         right: 8px;
+        top: 8px;
         bottom: auto;
         font-size: 12px;
       }
-      /* ズームボタンは画面中央右あたりへ（リストと重ならない） */
+      /* ズームボタンはHUDの下に */
       .zoom-buttons {
-        top: 50%;
-        bottom: auto;
         right: 8px;
-        transform: translateY(-50%);
+        top: 60px;
+        bottom: auto;
       }
       .zoom-buttons button {
         width: 44px;
@@ -297,13 +299,14 @@
         top: auto;
         bottom: 0;
         border-radius: 16px 16px 0 0;
-        max-height: 48%;
+        max-height: 50%;
         font-size: 14px;
       }
-      .sidebar-title {
-        font-size: 13px;
+      .sidebar-actions {
+        align-items: flex-start;
       }
-      .sidebar-actions button {
+      .sidebar-actions button,
+      .sidebar-actions select {
         font-size: 12px;
         padding: 4px 7px;
       }
@@ -321,61 +324,69 @@
   <div class="sidebar" id="sidebar">
     <div class="sidebar-header">
       <div class="sidebar-title">284 Capital - 基地一覧</div>
-      <div class="sidebar-actions">
+      <button id="toggle-sidebar">－</button>
+    </div>
+
+    <div class="sidebar-actions">
+      <!-- 上段：ボタン -->
+      <div class="toolbar-row">
         <button id="copy-btn">Copy</button>
         <button id="export-btn">Exp</button>
         <button id="import-btn">Imp</button>
-        <button id="pop-btn">Pop</button>
-        <button id="memo-pop-btn">Memo</button>
-        <button id="clear-btn">AllDel</button>
-        <button id="toggle-sidebar">－</button>
+        <button id="auto-btn">Auto</button>
+        <button id="clear-btn">Clear</button>
+        <button id="pop-toggle-btn">Pop</button>
+        <button id="memo-toggle-btn">Memo</button>
         <input type="file" id="import-file" accept="application/json" style="display:none" />
       </div>
-    </div>
-
-    <div class="sidebar-controls">
-      <label>
-        Filter:
-        <select id="filter-kind">
-          <option value="ALL">全て</option>
-          <option value="ALLY">味方</option>
-          <option value="ENEMY">敵</option>
-          <option value="CAPITAL">首都</option>
-          <option value="CANNON">大砲</option>
-          <option value="SUPPORT">援護</option>
-        </select>
-      </label>
-      <label>
-        Sort:
-        <select id="sort-key">
-          <option value="ALLIANCE">同盟</option>
-          <option value="NAME">基地名</option>
-          <option value="LEVEL">Lv.</option>
-          <option value="TIER">T</option>
-          <option value="TEAM">チーム</option>
-          <option value="STATUS">状態</option>
-        </select>
-      </label>
+      <!-- 下段：フィルター＆ソート -->
+      <div class="toolbar-row">
+        <label style="font-size:11px;">
+          陣営
+          <select id="filter-side">
+            <option value="ALL">全て</option>
+            <option value="ALLY">味方</option>
+            <option value="ENEMY">敵</option>
+          </select>
+        </label>
+        <label style="font-size:11px;">
+          チーム
+          <select id="filter-team">
+            <option value="ALL">全て</option>
+            <option value="首都">首都</option>
+            <option value="砲台">砲台</option>
+            <option value="援護">援護</option>
+          </select>
+        </label>
+        <label style="font-size:11px;">
+          ソート
+          <select id="sort-key">
+            <option value="alliance">同盟</option>
+            <option value="name">基地名</option>
+            <option value="level">Lv.</option>
+            <option value="tier">T</option>
+            <option value="team">チーム</option>
+          </select>
+        </label>
+      </div>
     </div>
 
     <div id="base-list-wrapper">
       <ul id="base-list"></ul>
     </div>
 
-    <div class="sidebar-summary" id="summary-box"></div>
+    <div class="sidebar-totals" id="sidebar-totals"></div>
 
     <div class="sidebar-note">
       <div class="note-pc">
         【PC】空きマス：ダブルクリックで基地追加 / 基地マス：ダブルクリックで編集・削除 / 左ドラッグで移動 / ホイールや＋－ボタンでズーム<br>
-        ・Copy: 同盟名・基地名・座標をクリップボードへ<br>
-        ・Exp/Imp: JSONファイルでエクスポート／インポート<br>
-        ・Pop: 基地ポップ表示 ON/OFF / Memo: メモだけポップ表示 ON/OFF
+        ・Copy: 同盟名・基地名・座標をコピー<br>
+        ・Exp/Imp: JSONファイルでエクスポート／インポート
       </div>
       <div class="note-sp">
         【スマホ】空きマス：同じマスを素早く2回タップで基地追加 / 基地マス：2回タップで編集・削除 / 1本指ドラッグで移動 / ＋－ボタンでズーム<br>
         ・Copy: 同盟名・基地名・座標をコピー<br>
-        ・Exp/Imp: JSONファイルで保存／読み込み<br>
-        ・Pop: 基地ポップ表示 ON/OFF / Memo: メモだけポップ表示 ON/OFF
+        ・Exp/Imp: JSONファイルで保存／読み込み
       </div>
     </div>
   </div>
@@ -393,69 +404,67 @@
   </div>
 
   <!-- 基地追加・編集ダイアログ -->
-  <div id="base-dialog"
-       style="position:fixed; inset:0; display:none; align-items:center; justify-content:center; z-index:30; background:rgba(0,0,0,0.6);">
+  <div id="base-dialog">
     <div style="background:#101317; padding:14px 16px; border-radius:12px; width:320px; max-width:90%; font-size:14px;">
       <div style="font-size:15px; font-weight:600; margin-bottom:8px;">基地の追加 / 編集</div>
       <div style="display:flex; flex-direction:column; gap:8px;">
         <label>
-          <span>陣営</span><br/>
-          <select id="dlg-side" style="width:100%; margin-top:2px; font-size:14px; background:#111; color:#f5f5f5;">
+          <span>陣営（味方 / 敵）</span><br />
+          <select id="dlg-side" style="width:100%; margin-top:2px;">
             <option value="ALLY">味方</option>
             <option value="ENEMY">敵</option>
           </select>
         </label>
         <label>
-          <span>所属同盟</span><br/>
-          <select id="dlg-alliance" style="width:100%; margin-top:2px; font-size:14px; background:#111; color:#f5f5f5;"></select>
+          <span>所属同盟</span><br />
+          <select id="dlg-alliance" style="width:100%; margin-top:2px;"></select>
         </label>
         <label>
-          <span>基地名</span><br/>
-          <select id="dlg-name" style="width:100%; margin-top:2px; font-size:14px; background:#111; color:#f5f5f5;"></select>
+          <span>基地名</span><br />
+          <select id="dlg-name" style="width:100%; margin-top:2px;"></select>
         </label>
-        <label id="team-row">
-          <span>チーム</span><br/>
-          <select id="dlg-team" style="width:100%; margin-top:2px; font-size:14px; background:#111; color:#f5f5f5;">
-            <option value="NONE">なし</option>
-            <option value="CAPITAL">首都</option>
-            <option value="CANNON">大砲</option>
-            <option value="SUPPORT">援護</option>
+        <label>
+          <span>チーム</span><br />
+          <select id="dlg-team" style="width:100%; margin-top:2px;">
+            <option value="">なし</option>
+            <option value="首都">首都</option>
+            <option value="砲台">砲台</option>
+            <option value="援護">援護</option>
           </select>
         </label>
         <label>
-          <span>参加状態</span><br/>
-          <select id="dlg-status" style="width:100%; margin-top:2px; font-size:14px; background:#111; color:#f5f5f5;">
+          <span>参加状態</span><br />
+          <select id="dlg-status" style="width:100%; margin-top:2px;">
             <option value="参加">参加</option>
             <option value="不参加">不参加</option>
             <option value="不明">不明</option>
           </select>
         </label>
         <label>
-          <span>レベル</span><br/>
-          <select id="dlg-level" style="width:100%; margin-top:2px; font-size:14px; background:#111; color:#f5f5f5;"></select>
+          <span>レベル</span><br />
+          <select id="dlg-level" style="width:100%; margin-top:2px;"></select>
         </label>
         <label>
-          <span>Tランク</span><br/>
-          <select id="dlg-tier" style="width:100%; margin-top:2px; font-size:14px; background:#111; color:#f5f5f5;"></select>
+          <span>Tランク</span><br />
+          <select id="dlg-tier" style="width:100%; margin-top:2px;"></select>
         </label>
         <label>
-          <span>メモ</span><br/>
-          <textarea id="dlg-memo" rows="2"
-            style="width:100%; margin-top:2px; font-size:13px; background:#111; color:#f5f5f5; border-radius:6px; border:1px solid rgba(255,255,255,0.2);"></textarea>
+          <span>メモ</span><br />
+          <textarea id="dlg-memo" rows="2" style="width:100%; margin-top:2px; resize:vertical;"></textarea>
         </label>
         <div style="font-size:12px; opacity:0.7;" id="dlg-coord-text"></div>
       </div>
       <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:12px;">
         <button id="dlg-cancel"
-                style="border:none; border-radius:999px; padding:5px 12px; font-size:14px; background:#444; color:#f5f5f5;">
+          style="border:none; border-radius:999px; padding:5px 12px; font-size:14px; background:#444; color:#f5f5f5;">
           キャンセル
         </button>
         <button id="dlg-delete"
-                style="border:none; border-radius:999px; padding:5px 12px; font-size:14px; background:#aa3333; color:#fff; display:none;">
+          style="border:none; border-radius:999px; padding:5px 12px; font-size:14px; background:#aa3333; color:#fff; display:none;">
           削除
         </button>
         <button id="dlg-ok"
-                style="border:none; border-radius:999px; padding:5px 12px; font-size:14px; background:#2c7be5; color:#fff;">
+          style="border:none; border-radius:999px; padding:5px 12px; font-size:14px; background:#2c7be5; color:#fff;">
           決定
         </button>
       </div>
@@ -469,6 +478,7 @@
     const cellDisplay = document.getElementById("cell-display");
     const baseListEl = document.getElementById("base-list");
     const sidebarEl = document.getElementById("sidebar");
+    const sidebarTotalsEl = document.getElementById("sidebar-totals");
 
     const copyBtn = document.getElementById("copy-btn");
     const toggleSidebarBtn = document.getElementById("toggle-sidebar");
@@ -476,20 +486,21 @@
     const zoomOutBtn = document.getElementById("zoom-out");
     const exportBtn = document.getElementById("export-btn");
     const importBtn = document.getElementById("import-btn");
-    const importFileInput = document.getElementById("import-file");
-    const summaryBox = document.getElementById("summary-box");
-    const filterKindSelect = document.getElementById("filter-kind");
-    const sortKeySelect = document.getElementById("sort-key");
-    const popBtn = document.getElementById("pop-btn");
-    const memoPopBtn = document.getElementById("memo-pop-btn");
+    const autoBtn = document.getElementById("auto-btn");
     const clearBtn = document.getElementById("clear-btn");
+    const importFileInput = document.getElementById("import-file");
+
+    const filterSideSel = document.getElementById("filter-side");
+    const filterTeamSel = document.getElementById("filter-team");
+    const sortKeySel = document.getElementById("sort-key");
+    const popToggleBtn = document.getElementById("pop-toggle-btn");
+    const memoToggleBtn = document.getElementById("memo-toggle-btn");
 
     const baseDialog = document.getElementById("base-dialog");
     const dlgSide = document.getElementById("dlg-side");
     const dlgAlliance = document.getElementById("dlg-alliance");
     const dlgName = document.getElementById("dlg-name");
     const dlgTeam = document.getElementById("dlg-team");
-    const teamRow = document.getElementById("team-row");
     const dlgStatus = document.getElementById("dlg-status");
     const dlgLevel = document.getElementById("dlg-level");
     const dlgTier = document.getElementById("dlg-tier");
@@ -502,10 +513,8 @@
     const HEX_SIZE = 20;
     const GRID_MAX_X = 999;
     const GRID_MAX_Y = 999;
-    const HEX_HEIGHT = 2 * HEX_SIZE;
-    const HEX_WIDTH  = Math.sqrt(3) * HEX_SIZE;
-    const HEX_VERT_SPACING  = 1.5 * HEX_SIZE;
-    const HEX_HORIZ_SPACING = HEX_WIDTH;
+    const HEX_VERT_SPACING = 1.5 * HEX_SIZE;
+    const HEX_HORIZ_SPACING = Math.sqrt(3) * HEX_SIZE;
     const EDGE_THICKNESS_WORLD = HEX_SIZE * 0.8;
     const STORAGE_KEY = "hexmap_bases_v9";
 
@@ -515,26 +524,23 @@
     const MIN_SCALE = 0.08;
     const MAX_SCALE = 3.0;
 
-    let canvasCssWidth = 0;
-    let canvasCssHeight = 0;
-
     let isPanning = false;
     let lastMouseX = 0;
     let lastMouseY = 0;
     let selectedCell = null;
+    let selectedBaseId = null;
 
     let touchStartX = 0;
     let touchStartY = 0;
     let lastTapTime = 0;
     let lastTapCell = null;
     const TAP_MAX_DELAY = 320;
-    const TAP_MAX_MOVE  = 12;
+    const TAP_MAX_MOVE = 12;
 
     let draggingBaseId = null;
     let lastDragCell = null;
 
     const bases = [];
-    let baseCount = 0;
 
     const CAPITAL_CENTER_X = 500;
     const CAPITAL_CENTER_Y = 500;
@@ -544,18 +550,23 @@
     const VIEW_MIN_Y = Math.max(0, CAPITAL_CENTER_Y - VIEW_RADIUS);
     const VIEW_MAX_Y = Math.min(GRID_MAX_Y, CAPITAL_CENTER_Y + VIEW_RADIUS);
 
-    // ★ 敵/味方 1000人分の仮メンバー
-    const ENEMY_MEMBERS = Array.from({ length: 1000 }, (_, i) =>
-      `敵${String(i + 1).padStart(3, "0")}`
-    );
-    const ALLY_MEMBERS = Array.from({ length: 1000 }, (_, i) =>
-      `味方${String(i + 1).padStart(3, "0")}`
-    );
+    // 敵/味方 1000人
+    const ENEMY_MEMBERS = Array.from({ length: 1000 }, (_, i) => "敵" + String(i + 1).padStart(3, "0"));
+    const ALLY_MEMBERS = Array.from({ length: 1000 }, (_, i) => "味方" + String(i + 1).padStart(3, "0"));
+
+    // チーム色
+    const TEAM_COLORS = {
+      "首都": "#ffcc33",
+      "砲台": "#ff7777",
+      "援護": "#66ccff",
+      "": "#ffffff"
+    };
 
     const ALLIANCES = [
       {
         key: "B777",
         name: "B777",
+        side: "ALLY",
         color: "#ffcc00",
         textColor: "#201500",
         members: [
@@ -575,6 +586,7 @@
       {
         key: "EclA",
         name: "EclA",
+        side: "ALLY",
         color: "#66ccff",
         textColor: "#002233",
         members: [
@@ -597,18 +609,21 @@
       {
         key: "ALLY",
         name: "味方",
-        color: "#66ff99",
-        textColor: "#002011",
+        side: "ALLY",
+        color: "#99ffcc",
+        textColor: "#002010",
         members: ALLY_MEMBERS
       },
       {
         key: "ENEMY",
         name: "敵",
+        side: "ENEMY",
         color: "#ff6666",
         textColor: "#2a0000",
         members: ENEMY_MEMBERS
       }
     ];
+
     const allianceMap = {};
     ALLIANCES.forEach(a => { allianceMap[a.key] = a; });
 
@@ -641,6 +656,7 @@
       { x: 492, y: 482 },{ x: 492, y: 481 },{ x: 493, y: 482 },{ x: 494, y: 482 },
       { x: 490, y: 481 },{ x: 493, y: 481 },{ x: 494, y: 482 }
     ];
+
     let desertPolygonWorld = [];
     let blockedPolygonWorld = [];
 
@@ -654,17 +670,6 @@
       { dq: 1, dr: -1 }
     ];
 
-    // フィルター・ソート・POP 状態
-    let filterKind = "ALL";
-    let sortKey = "ALLIANCE";
-    let showBasePopups = true;
-    let showMemoPopups = false;
-
-    // ダイアログ状態
-    let dialogMode = "create"; // "create" | "edit"
-    let dialogCell = null;
-    let dialogEditingBase = null;
-
     function oddrToAxial(col, row) {
       const q = col - (row - (row & 1)) / 2;
       const r = row;
@@ -675,38 +680,6 @@
       const col = q + (r - (r & 1)) / 2;
       return { x: col, y: row };
     }
-
-    function resizeCanvas() {
-      const rect = canvas.getBoundingClientRect();
-      canvasCssWidth = rect.width;
-      canvasCssHeight = rect.height;
-      const dpr = window.devicePixelRatio || 1;
-      canvas.width = rect.width * dpr;
-      canvas.height = rect.height * dpr;
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0); // 高解像度描画
-
-      if (!resizeCanvas.initialized) {
-        resizeCanvas.initialized = true;
-        const midWorld = gridToWorld(CAPITAL_CENTER_X, CAPITAL_CENTER_Y);
-        offsetX = rect.width / 2 - midWorld.x * scale;
-        offsetY = rect.height / 2 - midWorld.y * scale;
-
-        desertPolygonWorld = desertVerticesGrid.map(v => gridToWorld(v.x, v.y));
-        blockedPolygonWorld = blockedVerticesGrid.map(v => gridToWorld(v.x, v.y));
-
-        initDialogSelectors();
-        loadBases();
-        updateBaseListUI();
-
-        if (window.innerWidth <= 768) {
-          sidebarEl.classList.add("collapsed");
-          toggleSidebarBtn.textContent = "＋";
-        }
-      }
-      draw();
-    }
-    window.addEventListener("resize", resizeCanvas);
-    resizeCanvas();
 
     function gridToWorld(gx, gy) {
       const wx = HEX_HORIZ_SPACING * (gx + (gy & 1) * 0.5);
@@ -765,7 +738,8 @@
     }
 
     function isBlockedCell(gx, gy) {
-      for (const c of extraBlockedCells) {
+      for (let i = 0; i < extraBlockedCells.length; i++) {
+        const c = extraBlockedCells[i];
         if (c.x === gx && c.y === gy) return true;
       }
       const w = gridToWorld(gx, gy);
@@ -775,22 +749,39 @@
     }
 
     function findBaseAtCell(gx, gy) {
-      return bases.find(b => b.cells.some(c => c.x === gx && c.y === gy)) || null;
+      for (let i = 0; i < bases.length; i++) {
+        const b = bases[i];
+        for (let j = 0; j < b.cells.length; j++) {
+          const c = b.cells[j];
+          if (c.x === gx && c.y === gy) {
+            return b;
+          }
+        }
+      }
+      return null;
     }
 
-    function createBaseCellsForAnchor(gx, gy, ignoreBaseId = null) {
-      const { q, r } = oddrToAxial(gx, gy);
-      const cells = basePatternAxial.map(off => {
-        const oq = q + off.dq;
-        const or = r + off.dr;
-        return axialToOddr(oq, or);
-      });
-      for (const c of cells) {
+    function createBaseCellsForAnchor(gx, gy, ignoreBaseId) {
+      const ar = oddrToAxial(gx, gy);
+      const cells = [];
+      for (let i = 0; i < basePatternAxial.length; i++) {
+        const off = basePatternAxial[i];
+        const oq = ar.q + off.dq;
+        const or = ar.r + off.dr;
+        const o = axialToOddr(oq, or);
+        cells.push(o);
+      }
+      for (let i = 0; i < cells.length; i++) {
+        const c = cells[i];
         if (c.x < 0 || c.x > GRID_MAX_X || c.y < 0 || c.y > GRID_MAX_Y) return null;
         if (isBlockedCell(c.x, c.y)) return null;
-        for (const b of bases) {
+        for (let bi = 0; bi < bases.length; bi++) {
+          const b = bases[bi];
           if (ignoreBaseId && b.id === ignoreBaseId) continue;
-          if (b.cells.some(d => d.x === c.x && d.y === c.y)) return null;
+          for (let cj = 0; cj < b.cells.length; cj++) {
+            const bc = b.cells[cj];
+            if (bc.x === c.x && bc.y === c.y) return null;
+          }
         }
       }
       return cells;
@@ -802,6 +793,7 @@
         bases.splice(idx, 1);
         saveBases();
         updateBaseListUI();
+        updateTotals();
         draw();
       }
     }
@@ -841,12 +833,13 @@
           if (!rec.anchor) return;
           const cells = createBaseCellsForAnchor(rec.anchor.x, rec.anchor.y, null);
           if (!cells) return;
+          const alliance = allianceMap[rec.allianceKey] || ALLIANCES[0];
           bases.push({
             id: rec.id || (Date.now().toString(36) + Math.random().toString(36).slice(2,7)),
-            side: rec.side || "ALLY",
+            side: rec.side || alliance.side || "ALLY",
             allianceKey: rec.allianceKey || "B777",
             name: rec.name || "基地",
-            team: rec.team || "NONE",
+            team: rec.team || "",
             status: rec.status || "不明",
             level: rec.level ?? null,
             tier: rec.tier || "T1",
@@ -855,7 +848,6 @@
             anchor: rec.anchor
           });
         });
-        baseCount = bases.length;
       } catch (e) {
         console.warn("loadBases error:", e);
       }
@@ -867,18 +859,18 @@
         return;
       }
       if (!confirm("現在の基地データを全て置き換えますか？")) return;
-
       bases.length = 0;
       data.bases.forEach(rec => {
         if (!rec.anchor) return;
         const cells = createBaseCellsForAnchor(rec.anchor.x, rec.anchor.y, null);
         if (!cells) return;
+        const alliance = allianceMap[rec.allianceKey] || ALLIANCES[0];
         bases.push({
           id: rec.id || (Date.now().toString(36) + Math.random().toString(36).slice(2,7)),
-          side: rec.side || "ALLY",
+          side: rec.side || alliance.side || "ALLY",
           allianceKey: rec.allianceKey || "B777",
           name: rec.name || "基地",
-          team: rec.team || "NONE",
+          team: rec.team || "",
           status: rec.status || "不明",
           level: rec.level ?? null,
           tier: rec.tier || "T1",
@@ -887,9 +879,9 @@
           anchor: rec.anchor
         });
       });
-      baseCount = bases.length;
       saveBases();
       updateBaseListUI();
+      updateTotals();
       draw();
     }
 
@@ -911,7 +903,7 @@
       const file = e.target.files[0];
       if (!file) return;
       const reader = new FileReader();
-      reader.onload = (ev) => {
+      reader.onload = function(ev) {
         try {
           const data = JSON.parse(ev.target.result);
           importBasesFromData(data);
@@ -925,64 +917,94 @@
       reader.readAsText(file, "utf-8");
     }
 
-    // ===== ダイアログ関連 =====
+    exportBtn.addEventListener("click", exportBasesToFile);
+    importBtn.addEventListener("click", function() {
+      importFileInput.click();
+    });
+    importFileInput.addEventListener("change", handleImportFile);
+
+    // フィルター
+    let filterSide = "ALL";
+    let filterTeam = "ALL";
+    filterSideSel.addEventListener("change", function() {
+      filterSide = filterSideSel.value;
+      updateBaseListUI();
+      updateTotals();
+      draw();
+    });
+    filterTeamSel.addEventListener("change", function() {
+      filterTeam = filterTeamSel.value;
+      updateBaseListUI();
+      updateTotals();
+      draw();
+    });
+    sortKeySel.addEventListener("change", function() {
+      updateBaseListUI();
+    });
+
+    // Pop ON/OFF
+    let showBasePopups = true;
+    let showMemoPopups = true;
+    popToggleBtn.textContent = "Pop ON";
+    memoToggleBtn.textContent = "Memo ON";
+
+    popToggleBtn.addEventListener("click", function() {
+      showBasePopups = !showBasePopups;
+      popToggleBtn.textContent = showBasePopups ? "Pop ON" : "Pop OFF";
+      draw();
+    });
+    memoToggleBtn.addEventListener("click", function() {
+      showMemoPopups = !showMemoPopups;
+      memoToggleBtn.textContent = showMemoPopups ? "Memo ON" : "Memo OFF";
+      draw();
+    });
+
+    // ダイアログ状態
+    let dialogMode = "create";
+    let dialogCell = null;
+    let dialogEditingBase = null;
+
     function initDialogSelectors() {
-      // Lv: 30 -> 1
       dlgLevel.innerHTML = "";
       for (let lv = 30; lv >= 1; lv--) {
         const opt = document.createElement("option");
         opt.value = String(lv);
-        opt.textContent = `Lv.${lv}`;
+        opt.textContent = "Lv." + lv;
         dlgLevel.appendChild(opt);
       }
-      // T: 10 -> 1
       dlgTier.innerHTML = "";
       for (let t = 10; t >= 1; t--) {
         const opt = document.createElement("option");
-        opt.value = `T${t}`;
-        opt.textContent = `T${t}`;
+        opt.value = "T" + t;
+        opt.textContent = "T" + t;
         dlgTier.appendChild(opt);
       }
-      // Side 初期値は味方
-      dlgSide.value = "ALLY";
-      updateAllianceSelectorForSide("ALLY");
+      updateAllianceOptionsBySide("ALLY");
     }
 
-    function updateAllianceSelectorForSide(side) {
+    function updateAllianceOptionsBySide(side) {
       dlgAlliance.innerHTML = "";
-      let keys;
-      if (side === "ALLY") {
-        keys = ["ALLY", "B777", "EclA"];
-        teamRow.style.display = "";
-      } else {
-        keys = ["ENEMY"];
-        teamRow.style.display = "none";
-      }
-      keys.forEach(k => {
-        const a = allianceMap[k];
-        if (!a) return;
+      ALLIANCES.forEach(function(a) {
+        if (a.side !== side) return;
         const opt = document.createElement("option");
         opt.value = a.key;
         opt.textContent = a.name;
         dlgAlliance.appendChild(opt);
       });
-      const key = dlgAlliance.value;
-      const currentName = dialogEditingBase ? dialogEditingBase.name : null;
-      updateNameOptionsForAlliance(key, currentName);
     }
 
-    function updateNameOptionsForAlliance(allianceKey, currentName = null) {
+    function updateNameOptionsForAlliance(allianceKey, currentName) {
       const alliance = allianceMap[allianceKey];
       dlgName.innerHTML = "";
       if (!alliance) return;
-      const usedNames = new Set(bases.map(b => b.name));
-      alliance.members.forEach(name => {
+      const used = new Set(bases.map(b => b.name));
+      alliance.members.forEach(function(name) {
         if (dialogMode === "edit" && name === currentName) {
           const opt = document.createElement("option");
           opt.value = name;
           opt.textContent = name;
           dlgName.appendChild(opt);
-        } else if (!usedNames.has(name)) {
+        } else if (!used.has(name)) {
           const opt = document.createElement("option");
           opt.value = name;
           opt.textContent = name;
@@ -997,22 +1019,36 @@
       }
     }
 
+    dlgSide.addEventListener("change", function() {
+      const side = dlgSide.value;
+      updateAllianceOptionsBySide(side);
+      const firstAlliance = dlgAlliance.value;
+      updateNameOptionsForAlliance(firstAlliance, dialogEditingBase ? dialogEditingBase.name : null);
+    });
+
+    dlgAlliance.addEventListener("change", function() {
+      const key = dlgAlliance.value;
+      const currentName = dialogEditingBase ? dialogEditingBase.name : null;
+      updateNameOptionsForAlliance(key, currentName);
+    });
+
     function openBaseDialogForCreate(cell) {
       dialogMode = "create";
       dialogCell = cell;
       dialogEditingBase = null;
       dlgDelete.style.display = "none";
 
-      // デフォルト：味方・参加・Lv27・T9・チームなし
       dlgSide.value = "ALLY";
-      updateAllianceSelectorForSide("ALLY");
+      updateAllianceOptionsBySide("ALLY");
+      dlgAlliance.value = "B777";
+      updateNameOptionsForAlliance("B777", null);
+      dlgTeam.value = "援護";
       dlgStatus.value = "参加";
       dlgLevel.value = "27";
       dlgTier.value = "T9";
-      dlgTeam.value = "NONE";
       dlgMemo.value = "";
 
-      dlgCoordText.textContent = `配置セル: X${cell.x} Y${cell.y}`;
+      dlgCoordText.textContent = "配置セル: X" + cell.x + " Y" + cell.y;
       baseDialog.style.display = "flex";
     }
 
@@ -1023,17 +1059,17 @@
       dlgDelete.style.display = "inline-block";
 
       dlgSide.value = base.side || "ALLY";
-      updateAllianceSelectorForSide(dlgSide.value);
+      updateAllianceOptionsBySide(dlgSide.value);
       dlgAlliance.value = base.allianceKey || "B777";
-      updateNameOptionsForAlliance(dlgAlliance.value, base.name);
+      updateNameOptionsForAlliance(base.allianceKey || "B777", base.name);
       dlgName.value = base.name;
+      dlgTeam.value = base.team || "";
       dlgStatus.value = base.status || "不明";
       if (base.level != null) dlgLevel.value = String(base.level);
       dlgTier.value = base.tier || "T1";
-      dlgTeam.value = base.team || "NONE";
       dlgMemo.value = base.memo || "";
 
-      dlgCoordText.textContent = `配置セル: X${base.anchor.x} Y${base.anchor.y}`;
+      dlgCoordText.textContent = "配置セル: X" + base.anchor.x + " Y" + base.anchor.y;
       baseDialog.style.display = "flex";
     }
 
@@ -1043,38 +1079,33 @@
       dialogEditingBase = null;
     }
 
-    dlgSide.addEventListener("change", () => {
-      updateAllianceSelectorForSide(dlgSide.value);
+    dlgCancel.addEventListener("click", function() {
+      closeBaseDialog();
     });
 
-    dlgAlliance.addEventListener("change", () => {
-      const key = dlgAlliance.value;
-      const currentName = dialogEditingBase ? dialogEditingBase.name : null;
-      updateNameOptionsForAlliance(key, currentName);
-    });
-
-    dlgCancel.addEventListener("click", closeBaseDialog);
-
-    dlgDelete.addEventListener("click", () => {
+    dlgDelete.addEventListener("click", function() {
       if (!dialogEditingBase) return;
-      if (confirm(`基地「${dialogEditingBase.name}」を削除しますか？`)) {
+      if (confirm("基地「" + dialogEditingBase.name + "」を削除しますか？")) {
         deleteBaseById(dialogEditingBase.id);
         closeBaseDialog();
       }
     });
 
-    dlgOk.addEventListener("click", () => {
+    dlgOk.addEventListener("click", function() {
       const side = dlgSide.value;
       const allianceKey = dlgAlliance.value;
       const alliance = allianceMap[allianceKey] || ALLIANCES[0];
       const name = dlgName.value || "基地";
+      const team = dlgTeam.value || "";
       const status = dlgStatus.value || "不明";
       const level = Number(dlgLevel.value || "0");
       const tier = dlgTier.value || "T1";
-      const team = side === "ALLY" ? dlgTeam.value : "NONE";
       const memo = dlgMemo.value || "";
 
-      if (!dialogCell) { closeBaseDialog(); return; }
+      if (!dialogCell) {
+        closeBaseDialog();
+        return;
+      }
       const gx = dialogCell.x;
       const gy = dialogCell.y;
 
@@ -1084,21 +1115,20 @@
           alert("この位置には基地を配置できません。");
           return;
         }
-        const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+        const id = Date.now().toString(36) + Math.random().toString(36).slice(2,7);
         bases.push({
-          id,
-          side,
+          id: id,
+          side: side,
           allianceKey: alliance.key,
-          name,
-          status,
+          name: name,
+          team: team,
+          status: status,
           level: isNaN(level) ? null : level,
-          tier,
-          team,
-          memo,
-          cells,
+          tier: tier,
+          memo: memo,
+          cells: cells,
           anchor: { x: gx, y: gy }
         });
-        baseCount++;
       } else if (dialogMode === "edit" && dialogEditingBase) {
         const cells = createBaseCellsForAnchor(gx, gy, dialogEditingBase.id);
         if (!cells) {
@@ -1108,10 +1138,10 @@
         dialogEditingBase.side = side;
         dialogEditingBase.allianceKey = alliance.key;
         dialogEditingBase.name = name;
+        dialogEditingBase.team = team;
         dialogEditingBase.status = status;
         dialogEditingBase.level = isNaN(level) ? null : level;
         dialogEditingBase.tier = tier;
-        dialogEditingBase.team = team;
         dialogEditingBase.memo = memo;
         dialogEditingBase.cells = cells;
         dialogEditingBase.anchor = { x: gx, y: gy };
@@ -1119,101 +1149,69 @@
 
       saveBases();
       updateBaseListUI();
+      updateTotals();
       draw();
       closeBaseDialog();
     });
 
-    // ===== リスト UI + ソート・集計 =====
-    function passesFilter(b) {
-      switch (filterKind) {
-        case "ALLY": return b.side === "ALLY";
-        case "ENEMY": return b.side === "ENEMY";
-        case "CAPITAL": return b.team === "CAPITAL";
-        case "CANNON": return b.team === "CANNON";
-        case "SUPPORT": return b.team === "SUPPORT";
-        default: return true;
-      }
+    function getFilteredBases() {
+      return bases.filter(function(b) {
+        if (filterSide !== "ALL" && b.side !== filterSide) return false;
+        if (filterTeam !== "ALL" && b.team !== filterTeam) return false;
+        return true;
+      });
     }
 
-    function compareBase(a, b) {
-      const allianceA = allianceMap[a.allianceKey] || ALLIANCES[0];
-      const allianceB = allianceMap[b.allianceKey] || ALLIANCES[0];
-      const nameA = a.name || "";
-      const nameB = b.name || "";
-      const lvA = a.level || 0;
-      const lvB = b.level || 0;
-      const tierNumA = parseInt((a.tier || "T1").substring(1), 10) || 1;
-      const tierNumB = parseInt((b.tier || "T1").substring(1), 10) || 1;
-
-      switch (sortKey) {
-        case "NAME":
-          return nameA.localeCompare(nameB);
-        case "LEVEL":
-          if (lvA !== lvB) return lvB - lvA;
-          return nameA.localeCompare(nameB);
-        case "TIER":
-          if (tierNumA !== tierNumB) return tierNumB - tierNumA;
-          return nameA.localeCompare(nameB);
-        case "TEAM":
-          const orderTeam = { "CAPITAL": 0, "CANNON": 1, "SUPPORT": 2, "NONE": 3 };
-          const ta = orderTeam[a.team || "NONE"];
-          const tb = orderTeam[b.team || "NONE"];
-          if (ta !== tb) return ta - tb;
-          return nameA.localeCompare(nameB);
-        case "STATUS":
-          const orderSt = { "参加": 0, "不明": 1, "不参加": 2 };
-          const sa = orderSt[a.status] ?? 99;
-          const sb = orderSt[b.status] ?? 99;
-          if (sa !== sb) return sa - sb;
-          return nameA.localeCompare(nameB);
-        case "ALLIANCE":
-        default:
-          if (allianceA.name !== allianceB.name) {
-            return allianceA.name.localeCompare(allianceB.name);
-          }
-          return nameA.localeCompare(nameB);
-      }
+    function focusOnBase(b) {
+      const rect = canvas.getBoundingClientRect();
+      const world = gridToWorld(b.anchor.x, b.anchor.y);
+      offsetX = rect.width / 2 - world.x * scale;
+      offsetY = rect.height / 2 - world.y * scale;
+      draw();
     }
 
     function updateBaseListUI() {
       baseListEl.innerHTML = "";
-      const filtered = bases.filter(passesFilter);
-      const sorted = [...filtered].sort(compareBase);
+      const list = getFilteredBases();
+      const sortKey = sortKeySel.value;
 
-      // 集計
-      const teamCount = { CAPITAL:0, CANNON:0, SUPPORT:0, NONE:0 };
-      const statusCount = { "参加":0, "不参加":0, "不明":0 };
-      const lvCount = Array(31).fill(0); // 0〜30
-      const tCount = Array(11).fill(0);  // 0〜10 (T1〜T10)
-
-      sorted.forEach(b => {
-        const t = b.team || "NONE";
-        if (teamCount[t] != null) teamCount[t]++;
-        if (statusCount[b.status] != null) statusCount[b.status]++;
-        if (b.level != null && b.level >= 1 && b.level <= 30) lvCount[b.level]++;
-        const tn = parseInt((b.tier || "T1").substring(1), 10);
-        if (!isNaN(tn) && tn >= 1 && tn <= 10) tCount[tn]++;
+      const sorted = list.slice().sort(function(a, b) {
+        if (sortKey === "alliance") {
+          const aa = (allianceMap[a.allianceKey] && allianceMap[a.allianceKey].name) || a.allianceKey;
+          const bb = (allianceMap[b.allianceKey] && allianceMap[b.allianceKey].name) || b.allianceKey;
+          return aa.localeCompare(bb, "ja");
+        } else if (sortKey === "name") {
+          return (a.name || "").localeCompare(b.name || "", "ja");
+        } else if (sortKey === "level") {
+          const la = a.level || 0;
+          const lb = b.level || 0;
+          if (la !== lb) return lb - la;
+          return (a.name || "").localeCompare(b.name || "", "ja");
+        } else if (sortKey === "tier") {
+          const ta = parseInt((a.tier || "T1").slice(1), 10) || 1;
+          const tb = parseInt((b.tier || "T1").slice(1), 10) || 1;
+          if (ta !== tb) return tb - ta;
+          return (a.name || "").localeCompare(b.name || "", "ja");
+        } else if (sortKey === "team") {
+          return (a.team || "").localeCompare(b.team || "", "ja");
+        }
+        return 0;
       });
 
-      // リスト要素
-      sorted.forEach(b => {
+      sorted.forEach(function(b) {
         const li = document.createElement("li");
         li.className = "base-item";
+        if (b.id === selectedBaseId) {
+          li.classList.add("selected");
+        }
 
         const alliance = allianceMap[b.allianceKey] || ALLIANCES[0];
+        const teamColor = TEAM_COLORS[b.team || ""] || alliance.color;
+
         const dot = document.createElement("div");
         dot.className = "base-color-dot";
-
-        // チーム別で少し色調整（合成）
-        let baseColor = alliance.color;
-        if (b.team === "CAPITAL") {
-          baseColor = "#ffdd55";
-        } else if (b.team === "CANNON") {
-          baseColor = "#ff8888";
-        } else if (b.team === "SUPPORT") {
-          baseColor = "#88ffdd";
-        }
-        dot.style.background = baseColor;
+        dot.style.background = teamColor;
+        dot.style.borderColor = alliance.color;
 
         const info = document.createElement("div");
         info.className = "base-item-info";
@@ -1227,7 +1225,7 @@
 
         const allianceSpan = document.createElement("span");
         allianceSpan.className = "base-alliance";
-        allianceSpan.textContent = alliance.name;
+        allianceSpan.textContent = (b.side === "ALLY" ? "味方" : "敵") + " / " + alliance.name;
 
         nameRow.appendChild(nameSpan);
         nameRow.appendChild(allianceSpan);
@@ -1237,17 +1235,13 @@
 
         const coordSpan = document.createElement("span");
         coordSpan.className = "base-coord";
-        coordSpan.textContent = `X${b.anchor.x} Y${b.anchor.y}`;
+        coordSpan.textContent = "X" + b.anchor.x + " Y" + b.anchor.y;
 
         const tagSpan = document.createElement("span");
         tagSpan.className = "base-tagline";
-        const lv = b.level != null ? `Lv.${b.level}` : "Lv.-";
-        let teamLabel = "";
-        if (b.team === "CAPITAL") teamLabel = "首都";
-        else if (b.team === "CANNON") teamLabel = "大砲";
-        else if (b.team === "SUPPORT") teamLabel = "援護";
-        else teamLabel = "";
-        tagSpan.textContent = `${b.status} ${b.tier} ${lv}${teamLabel ? " / " + teamLabel : ""}`;
+        const lv = b.level != null ? "Lv." + b.level : "Lv.-";
+        const teamLabel = b.team ? b.team : "チームなし";
+        tagSpan.textContent = b.status + " " + b.tier + " " + lv + " / " + teamLabel;
 
         metaRow.appendChild(coordSpan);
         metaRow.appendChild(tagSpan);
@@ -1258,72 +1252,129 @@
         li.appendChild(dot);
         li.appendChild(info);
 
-        // ダブルクリック / ダブルタップで編集
-        let lastClickTime = 0;
-        li.addEventListener("click", (e) => {
-          const now = Date.now();
-          // シングルクリック → フォーカス移動
+        li.addEventListener("click", function() {
+          selectedBaseId = b.id;
           focusOnBase(b);
-          // 250ms 以内にもう一度来たらダブルクリック扱い
-          if (now - lastClickTime < 250) {
-            openBaseDialogForEdit(b);
-          }
-          lastClickTime = now;
+          updateBaseListUI();
+        });
+        li.addEventListener("dblclick", function(e) {
+          e.stopPropagation();
+          selectedBaseId = b.id;
+          openBaseDialogForEdit(b);
         });
 
         baseListEl.appendChild(li);
       });
-
-      // 集計表示
-      const lines = [];
-
-      lines.push(`基地数: ${filtered.length}`);
-      lines.push(
-        `チーム: 首都 ${teamCount.CAPITAL} / 大砲 ${teamCount.CANNON} / 援護 ${teamCount.SUPPORT} / なし ${teamCount.NONE}`
-      );
-      lines.push(
-        `状態: 参加 ${statusCount["参加"]} / 不参加 ${statusCount["不参加"]} / 不明 ${statusCount["不明"]}`
-      );
-
-      // Lv 合計（あるものだけ）
-      const lvParts = [];
-      for (let lv = 30; lv >= 1; lv--) {
-        if (lvCount[lv] > 0) lvParts.push(`Lv.${lv}:${lvCount[lv]}`);
-      }
-      if (lvParts.length > 0) {
-        lines.push("Lv内訳: " + lvParts.join(" / "));
-      }
-
-      const tParts = [];
-      for (let t = 10; t >= 1; t--) {
-        if (tCount[t] > 0) tParts.push(`T${t}:${tCount[t]}`);
-      }
-      if (tParts.length > 0) {
-        lines.push("T内訳: " + tParts.join(" / "));
-      }
-
-      summaryBox.textContent = lines.join("\n");
     }
 
-    // ===== 描画系 =====
-    function drawHexCenter(wx, wy, strokeStyle, fillStyle, lineWidth = 1) {
-      const { x: sx, y: sy } = worldToScreen(wx, wy);
+    function updateTotals() {
+      const list = getFilteredBases();
+      const total = list.length;
+      let allyCount = 0;
+      let enemyCount = 0;
+      const teamCounts = { "首都": 0, "砲台": 0, "援護": 0, "": 0 };
+      const statusCounts = { "参加": 0, "不参加": 0, "不明": 0 };
+      const lvCounts = {};
+      const tCounts = {};
+
+      list.forEach(function(b) {
+        if (b.side === "ALLY") allyCount++;
+        else if (b.side === "ENEMY") enemyCount++;
+
+        teamCounts[b.team || ""] = (teamCounts[b.team || ""] || 0) + 1;
+        statusCounts[b.status || "不明"] = (statusCounts[b.status || "不明"] || 0) + 1;
+        if (b.level != null) {
+          lvCounts[b.level] = (lvCounts[b.level] || 0) + 1;
+        }
+        if (b.tier) {
+          const tnum = parseInt(b.tier.slice(1), 10);
+          if (!isNaN(tnum)) {
+            tCounts[tnum] = (tCounts[tnum] || 0) + 1;
+          }
+        }
+      });
+
+      const teamParts = [];
+      if (teamCounts["首都"]) teamParts.push("首都 " + teamCounts["首都"]);
+      if (teamCounts["砲台"]) teamParts.push("砲台 " + teamCounts["砲台"]);
+      if (teamCounts["援護"]) teamParts.push("援護 " + teamCounts["援護"]);
+      if (teamCounts[""] && teamCounts[""] > 0) teamParts.push("なし " + teamCounts[""]);
+
+      const statusParts = [];
+      if (statusCounts["参加"]) statusParts.push("参加 " + statusCounts["参加"]);
+      if (statusCounts["不参加"]) statusParts.push("不参加 " + statusCounts["不参加"]);
+      if (statusCounts["不明"]) statusParts.push("不明 " + statusCounts["不明"]);
+
+      const lvParts = [];
+      Object.keys(lvCounts)
+        .map(function(x) { return parseInt(x, 10); })
+        .sort(function(a, b) { return b - a; })
+        .forEach(function(lv) {
+          lvParts.push("Lv." + lv + " " + lvCounts[lv]);
+        });
+
+      const tParts = [];
+      Object.keys(tCounts)
+        .map(function(x) { return parseInt(x, 10); })
+        .sort(function(a, b) { return b - a; })
+        .forEach(function(tn) {
+          tParts.push("T" + tn + " " + tCounts[tn]);
+        });
+
+      let html = "総数 " + total + " / 味方 " + allyCount + " / 敵 " + enemyCount;
+      if (teamParts.length) html += "<br>チーム " + teamParts.join(" / ");
+      if (statusParts.length) html += "<br>状態 " + statusParts.join(" / ");
+      if (lvParts.length) html += "<br>Lv.内訳 " + lvParts.join(" / ");
+      if (tParts.length) html += "<br>T内訳 " + tParts.join(" / ");
+      sidebarTotalsEl.innerHTML = html;
+    }
+
+    function drawRoundedRect(ctx2, x, y, w, h, r) {
+      const radius = Math.min(r, w / 2, h / 2);
+      ctx2.beginPath();
+      ctx2.moveTo(x + radius, y);
+      ctx2.lineTo(x + w - radius, y);
+      ctx2.quadraticCurveTo(x + w, y, x + w, y + radius);
+      ctx2.lineTo(x + w, y + h - radius);
+      ctx2.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
+      ctx2.lineTo(x + radius, y + h);
+      ctx2.quadraticCurveTo(x, y + h, x, y + h - radius);
+      ctx2.lineTo(x, y + radius);
+      ctx2.quadraticCurveTo(x, y, x + radius, y);
+      ctx2.closePath();
+    }
+
+    function hexToRgba(hex, alpha) {
+      let c = hex.replace("#", "");
+      if (c.length === 3) {
+        c = c.split("").map(function(ch) { return ch + ch; }).join("");
+      }
+      const r = parseInt(c.slice(0, 2), 16);
+      const g = parseInt(c.slice(2, 4), 16);
+      const b = parseInt(c.slice(4, 6), 16);
+      return "rgba(" + r + "," + g + "," + b + "," + alpha + ")";
+    }
+
+    function drawHexCenter(wx, wy, strokeStyle, fillStyle, lineWidth) {
+      const sPos = worldToScreen(wx, wy);
       const s = HEX_SIZE * scale;
       const w = Math.sqrt(3) * s;
       const h = s;
 
       const pts = [
-        { x: sx,        y: sy - h },
-        { x: sx + w/2,  y: sy - h/2 },
-        { x: sx + w/2,  y: sy + h/2 },
-        { x: sx,        y: sy + h },
-        { x: sx - w/2,  y: sy + h/2 },
-        { x: sx - w/2,  y: sy - h/2 }
+        { x: sPos.x,       y: sPos.y - h },
+        { x: sPos.x + w/2, y: sPos.y - h/2 },
+        { x: sPos.x + w/2, y: sPos.y + h/2 },
+        { x: sPos.x,       y: sPos.y + h },
+        { x: sPos.x - w/2, y: sPos.y + h/2 },
+        { x: sPos.x - w/2, y: sPos.y - h/2 }
       ];
 
       ctx.beginPath();
       ctx.moveTo(pts[0].x, pts[0].y);
-      for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+      for (let i = 1; i < pts.length; i++) {
+        ctx.lineTo(pts[i].x, pts[i].y);
+      }
       ctx.closePath();
 
       if (fillStyle) {
@@ -1337,35 +1388,32 @@
       }
     }
 
-    function drawGrid() {
-      const w = canvasCssWidth;
-      const h = canvasCssHeight;
+    function drawGrid(filteredBases) {
+      const rect = canvas.getBoundingClientRect();
+      const w = rect.width;
+      const h = rect.height;
       const margin = 80 / scale;
       const topLeftWorld = screenToWorld(-margin, -margin);
       const bottomRightWorld = screenToWorld(w + margin, h + margin);
 
       let gyMin = Math.floor(topLeftWorld.y / HEX_VERT_SPACING) - 2;
       let gyMax = Math.ceil(bottomRightWorld.y / HEX_VERT_SPACING) + 2;
-      gyMin = Math.max(0, gyMin);
-      gyMax = Math.min(GRID_MAX_Y, gyMax);
-      gyMin = Math.max(gyMin, VIEW_MIN_Y);
-      gyMax = Math.min(gyMax, VIEW_MAX_Y);
+      gyMin = Math.max(VIEW_MIN_Y, Math.max(0, gyMin));
+      gyMax = Math.min(VIEW_MAX_Y, Math.min(GRID_MAX_Y, gyMax));
 
       for (let gy = gyMin; gy <= gyMax; gy++) {
         const rowOffset = (gy & 1) ? HEX_HORIZ_SPACING * 0.5 : 0;
 
         let gxMin = Math.floor((topLeftWorld.x - rowOffset) / HEX_HORIZ_SPACING) - 2;
         let gxMax = Math.ceil((bottomRightWorld.x - rowOffset) / HEX_HORIZ_SPACING) + 2;
-        gxMin = Math.max(0, gxMin);
-        gxMax = Math.min(GRID_MAX_X, gxMax);
-        gxMin = Math.max(gxMin, VIEW_MIN_X);
-        gxMax = Math.min(gxMax, VIEW_MAX_X);
+        gxMin = Math.max(VIEW_MIN_X, Math.max(0, gxMin));
+        gxMax = Math.min(VIEW_MAX_X, Math.min(GRID_MAX_X, gxMax));
 
         for (let gx = gxMin; gx <= gxMax; gx++) {
-          const { x: wx, y: wy } = gridToWorld(gx, gy);
-          const center = { x: wx, y: wy };
+          const world = gridToWorld(gx, gy);
+          const center = world;
 
-          const isSelectedCell =
+          const isSelected =
             selectedCell && selectedCell.x === gx && selectedCell.y === gy;
 
           const desertIn = pointInPolygon(center, desertPolygonWorld);
@@ -1377,17 +1425,27 @@
           const inBlockedPolygon = blkIn || blkDist <= EDGE_THICKNESS_WORLD;
 
           let inExtraBlocked = false;
-          for (const c of extraBlockedCells) {
+          for (let i = 0; i < extraBlockedCells.length; i++) {
+            const c = extraBlockedCells[i];
             if (gx === c.x && gy === c.y) { inExtraBlocked = true; break; }
           }
           const inBlocked = inBlockedPolygon || inExtraBlocked;
 
-          const baseAt = bases.find(b =>
-            b.cells.some(c => c.x === gx && c.y === gy) && passesFilter(b)
-          );
+          let baseAt = null;
+          for (let bi = 0; bi < filteredBases.length; bi++) {
+            const b = filteredBases[bi];
+            for (let cj = 0; cj < b.cells.length; cj++) {
+              const c = b.cells[cj];
+              if (c.x === gx && c.y === gy) {
+                baseAt = b;
+                break;
+              }
+            }
+            if (baseAt) break;
+          }
 
           let stroke, fill, lw;
-          if (isSelectedCell) {
+          if (isSelected) {
             stroke = "rgba(255,221,85,0.7)";
             fill   = "rgba(255,221,85,0.15)";
             lw = 1.6;
@@ -1397,15 +1455,12 @@
             lw = 1.2;
           } else if (baseAt) {
             const alliance = allianceMap[baseAt.allianceKey] || ALLIANCES[0];
-            let baseColor = alliance.color;
-            if (baseAt.team === "CAPITAL") baseColor = "#ffdd55";
-            else if (baseAt.team === "CANNON") baseColor = "#ff8888";
-            else if (baseAt.team === "SUPPORT") baseColor = "#88ffdd";
+            const teamColor = TEAM_COLORS[baseAt.team || ""] || alliance.color;
             let alphaFill = 0.25;
             if (baseAt.status === "参加") alphaFill = 0.34;
             else if (baseAt.status === "不参加") alphaFill = 0.22;
-            stroke = hexToRgba(baseColor, 0.95);
-            fill   = hexToRgba(baseColor, alphaFill);
+            stroke = hexToRgba(alliance.color, 0.95);
+            fill   = hexToRgba(teamColor, alphaFill);
             lw = 1.5;
           } else {
             stroke = inDesert
@@ -1415,14 +1470,14 @@
             lw = 0.7;
           }
 
-          drawHexCenter(wx, wy, stroke, fill, lw);
+          drawHexCenter(world.x, world.y, stroke, fill, lw);
         }
       }
     }
 
     function drawDesertOutline() {
       ctx.beginPath();
-      desertPolygonWorld.forEach((p, i) => {
+      desertPolygonWorld.forEach(function(p, i) {
         const s = worldToScreen(p.x, p.y);
         if (i === 0) ctx.moveTo(s.x, s.y);
         else ctx.lineTo(s.x, s.y);
@@ -1435,7 +1490,7 @@
 
     function drawBlockedOutline() {
       ctx.beginPath();
-      blockedPolygonWorld.forEach((p, i) => {
+      blockedPolygonWorld.forEach(function(p, i) {
         const s = worldToScreen(p.x, p.y);
         if (i === 0) ctx.moveTo(s.x, s.y);
         else ctx.lineTo(s.x, s.y);
@@ -1451,22 +1506,23 @@
       ctx.fillStyle = "rgba(255,255,255,0.9)";
       ctx.textAlign = "center";
 
-      let cx = 0, cy = 0;
-      desertVerticesGrid.forEach(v => { cx += v.x; cy += v.y; });
+      let cx = 0;
+      let cy = 0;
+      desertVerticesGrid.forEach(function(v) { cx += v.x; cy += v.y; });
       cx /= desertVerticesGrid.length;
       cy /= desertVerticesGrid.length;
-      const desertWorld = gridToWorld(cx, cy);
-      const desertScreen = worldToScreen(desertWorld.x, desertWorld.y);
+      const desertW = gridToWorld(cx, cy);
+      const desertS = worldToScreen(desertW.x, desertW.y);
 
       let fontSize = Math.max(12, Math.min(24, 15 * scale * 2.5));
-      ctx.font = `${fontSize}px system-ui,"-apple-system","BlinkMacSystemFont","Segoe UI",sans-serif`;
+      ctx.font = fontSize + "px system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif";
       ctx.textBaseline = "middle";
-      ctx.fillText("砂漠エリア", desertScreen.x, desertScreen.y);
+      ctx.fillText("砂漠エリア", desertS.x, desertS.y);
 
-      const grassWorld = gridToWorld(500, 550);
-      const grassScreen = worldToScreen(grassWorld.x, grassWorld.y);
+      const grassW = gridToWorld(500, 550);
+      const grassS = worldToScreen(grassW.x, grassW.y);
       ctx.fillStyle = "rgba(200,255,200,0.85)";
-      ctx.fillText("芝生エリア", grassScreen.x, grassScreen.y);
+      ctx.fillText("芝生エリア", grassS.x, grassS.y);
 
       const fixedLabels = [
         { x: 500, y: 500, text: "配置不可エリア" },
@@ -1476,11 +1532,11 @@
       ];
 
       fontSize = Math.max(10, Math.min(20, 13 * scale * 2));
-      ctx.font = `${fontSize}px system-ui,"-apple-system","BlinkMacSystemFont","Segoe UI",sans-serif`;
+      ctx.font = fontSize + "px system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif";
       ctx.fillStyle = "rgba(255,255,255,0.9)";
       ctx.textBaseline = "top";
 
-      fixedLabels.forEach(obj => {
+      fixedLabels.forEach(function(obj) {
         const w = gridToWorld(obj.x, obj.y);
         const s = worldToScreen(w.x, w.y);
         const offset = HEX_SIZE * scale * 1.3;
@@ -1490,26 +1546,11 @@
       ctx.restore();
     }
 
-    function drawRoundedRect(ctx, x, y, w, h, r) {
-      const radius = Math.min(r, w/2, h/2);
-      ctx.beginPath();
-      ctx.moveTo(x + radius, y);
-      ctx.lineTo(x + w - radius, y);
-      ctx.quadraticCurveTo(x + w, y, x + w, y + radius);
-      ctx.lineTo(x + w, y + h - radius);
-      ctx.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
-      ctx.lineTo(x + radius, y + h);
-      ctx.quadraticCurveTo(x, y + h, x, y + h - radius);
-      ctx.lineTo(x, y + radius);
-      ctx.quadraticCurveTo(x, y, x + radius, y);
-      ctx.closePath();
-    }
-
-    function drawBaseLabels() {
+    function drawBaseLabels(filteredBases) {
       if (!showBasePopups) return;
       ctx.save();
 
-      bases.filter(passesFilter).forEach(b => {
+      filteredBases.forEach(function(b) {
         const anchor = b.anchor || b.cells[0];
         const world = gridToWorld(anchor.x, anchor.y);
         const screen = worldToScreen(world.x, world.y);
@@ -1517,15 +1558,15 @@
         const alliance = allianceMap[b.allianceKey] || ALLIANCES[0];
         const nameText = b.name;
         const statusText = b.status || "不明";
-        const levelText = b.level != null ? `Lv.${b.level}` : "Lv.-";
+        const levelText = b.level != null ? "Lv." + b.level : "Lv.-";
         const tierText = b.tier || "T1";
-        const statusLine = `${statusText} ${tierText} ${levelText}`;
-        const coordText = `X${anchor.x} Y${anchor.y}`;
+        const statusLine = statusText + " " + tierText + " " + levelText;
+        const coordText = "X" + anchor.x + " Y" + anchor.y;
 
         const baseFontSize = Math.max(6, Math.min(12, 10 * scale * 2.0));
         const lineHeight = baseFontSize * 1.05;
 
-        ctx.font = `${baseFontSize}px system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif`;
+        ctx.font = baseFontSize + "px system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif";
 
         const nameWidth = ctx.measureText(nameText).width;
         const statusWidth = ctx.measureText(statusLine).width;
@@ -1560,35 +1601,30 @@
 
         const iconX = screen.x - iconSize / 2;
         const iconY = cursorY;
-        let baseColor = alliance.color;
-        if (b.team === "CAPITAL") baseColor = "#ffdd55";
-        else if (b.team === "CANNON") baseColor = "#ff8888";
-        else if (b.team === "SUPPORT") baseColor = "#88ffdd";
-
-        ctx.fillStyle = baseColor;
+        ctx.fillStyle = alliance.color;
         drawRoundedRect(ctx, iconX, iconY, iconSize, iconSize, 4);
         ctx.fill();
 
         ctx.fillStyle = alliance.textColor || "#000";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
-        ctx.font = `${baseFontSize}px system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif`;
+        ctx.font = baseFontSize + "px system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif";
         ctx.fillText(alliance.name, screen.x, iconY + iconSize / 2);
 
         cursorY += iconSize + 4;
 
         ctx.textAlign = "center";
         ctx.textBaseline = "top";
-        ctx.font = `${baseFontSize}px system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif`;
+        ctx.font = baseFontSize + "px system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif";
 
         ctx.fillStyle = "rgba(255,255,255,0.96)";
         ctx.fillText(nameText, screen.x, cursorY);
         cursorY += lineHeight;
 
         ctx.fillStyle =
-          statusText === "参加" ? "rgba(150,255,190,0.96)"
-          : statusText === "不参加" ? "rgba(255,170,170,0.96)"
-          : "rgba(255,230,170,0.96)";
+          statusText === "参加" ? "rgba(150,255,190,0.96)" :
+          statusText === "不参加" ? "rgba(255,170,170,0.96)" :
+          "rgba(255,230,170,0.96)";
         ctx.fillText(statusLine, screen.x, cursorY);
         cursorY += lineHeight;
 
@@ -1599,78 +1635,77 @@
       ctx.restore();
     }
 
-    function drawMemoLabels() {
+    function drawMemoLabels(filteredBases) {
       if (!showMemoPopups) return;
       ctx.save();
 
-      const memoBases = bases.filter(b => b.memo && b.memo.trim() && passesFilter(b));
-      memoBases.forEach(b => {
+      filteredBases.forEach(function(b) {
+        if (!b.memo) return;
         const anchor = b.anchor || b.cells[0];
         const world = gridToWorld(anchor.x, anchor.y);
         const screen = worldToScreen(world.x, world.y);
 
-        const text = b.memo.trim();
+        const memoText = b.memo;
         const fontSize = Math.max(10, Math.min(18, 14 * scale * 2.0));
-        const lineHeight = fontSize * 1.2;
+        ctx.font = fontSize + "px system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif";
 
-        ctx.font = `${fontSize}px system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif`;
+        const textWidth = ctx.measureText(memoText).width;
+        const paddingX = 6 * scale * 1.5;
+        const paddingY = 4 * scale * 1.5;
 
-        const lines = text.split(/\r?\n/);
-        const widths = lines.map(line => ctx.measureText(line).width);
-        const textWidth = Math.max(...widths, 40);
-        const paddingX = 6;
-        const paddingY = 4;
         const panelWidth = textWidth + paddingX * 2;
-        const panelHeight = lineHeight * lines.length + paddingY * 2;
+        const panelHeight = fontSize + paddingY * 2;
 
-        const offsetBelowHex = HEX_SIZE * scale * 1.8;
+        const offsetBelow = HEX_SIZE * scale * 1.6;
         const panelX = screen.x - panelWidth / 2;
-        const panelY = screen.y + offsetBelowHex;
+        const panelY = screen.y + offsetBelow;
 
         ctx.globalAlpha = 0.95;
-        ctx.fillStyle = "rgba(0,0,0,0.85)";
-        drawRoundedRect(ctx, panelX, panelY, panelWidth, panelHeight, 8);
+        ctx.fillStyle = "rgba(20,20,20,0.9)";
+        drawRoundedRect(ctx, panelX, panelY, panelWidth, panelHeight, 6);
         ctx.fill();
         ctx.globalAlpha = 1.0;
-        ctx.strokeStyle = "rgba(255,255,255,0.35)";
-        ctx.lineWidth = 1.2;
-        drawRoundedRect(ctx, panelX, panelY, panelWidth, panelHeight, 8);
+        ctx.strokeStyle = "rgba(255,255,255,0.25)";
+        ctx.lineWidth = 1;
+        drawRoundedRect(ctx, panelX, panelY, panelWidth, panelHeight, 6);
         ctx.stroke();
 
-        ctx.fillStyle = "rgba(255,255,255,0.96)";
+        ctx.fillStyle = "rgba(255,255,255,0.98)";
         ctx.textAlign = "center";
-        ctx.textBaseline = "top";
-
-        let y = panelY + paddingY;
-        lines.forEach(line => {
-          ctx.fillText(line, screen.x, y);
-          y += lineHeight;
-        });
+        ctx.textBaseline = "middle";
+        ctx.fillText(memoText, screen.x, panelY + panelHeight / 2);
       });
 
       ctx.restore();
     }
 
     function draw() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      drawGrid();
+      const rect = canvas.getBoundingClientRect();
+      ctx.clearRect(0, 0, rect.width, rect.height);
+
+      const filteredBases = getFilteredBases();
+
+      drawGrid(filteredBases);
       drawDesertOutline();
       drawBlockedOutline();
       drawRegionLabels();
-      drawBaseLabels();
-      drawMemoLabels();
+      drawBaseLabels(filteredBases);
+      drawMemoLabels(filteredBases);
 
       zoomDisplay.textContent = Math.round(scale * 100) + "%";
       cellDisplay.textContent = selectedCell
-        ? `X${selectedCell.x} Y${selectedCell.y}`
+        ? "X" + selectedCell.x + " Y" + selectedCell.y
         : "—";
     }
 
-    // ===== 操作 =====
     function handleCellDoubleAction(cell) {
       const base = findBaseAtCell(cell.x, cell.y);
-      if (base) openBaseDialogForEdit(base);
-      else openBaseDialogForCreate(cell);
+      if (base) {
+        selectedBaseId = base.id;
+        openBaseDialogForEdit(base);
+      } else {
+        openBaseDialogForCreate(cell);
+      }
     }
 
     function zoomAt(mx, my, zoomDelta) {
@@ -1685,17 +1720,8 @@
       draw();
     }
 
-    function focusOnBase(b) {
-      const world = gridToWorld(b.anchor.x, b.anchor.y);
-      const midX = canvasCssWidth / 2;
-      const midY = canvasCssHeight / 2;
-      offsetX = midX - world.x * scale;
-      offsetY = midY - world.y * scale;
-      selectedCell = { x: b.anchor.x, y: b.anchor.y };
-      draw();
-    }
-
-    canvas.addEventListener("mousedown", (e) => {
+    // イベント類
+    canvas.addEventListener("mousedown", function(e) {
       if (e.button !== 0) return;
       const rect = canvas.getBoundingClientRect();
       const mx = e.clientX - rect.left;
@@ -1716,7 +1742,7 @@
       draw();
     });
 
-    window.addEventListener("mousemove", (e) => {
+    window.addEventListener("mousemove", function(e) {
       if (draggingBaseId) {
         const rect = canvas.getBoundingClientRect();
         const mx = e.clientX - rect.left;
@@ -1738,14 +1764,14 @@
       draw();
     });
 
-    window.addEventListener("mouseup", () => {
+    window.addEventListener("mouseup", function() {
       isPanning = false;
       draggingBaseId = null;
       lastDragCell = null;
       canvas.classList.remove("dragging");
     });
 
-    canvas.addEventListener("wheel", (e) => {
+    canvas.addEventListener("wheel", function(e) {
       e.preventDefault();
       const rect = canvas.getBoundingClientRect();
       const mx = e.clientX - rect.left;
@@ -1754,7 +1780,7 @@
       zoomAt(mx, my, delta);
     }, { passive: false });
 
-    canvas.addEventListener("click", (e) => {
+    canvas.addEventListener("click", function(e) {
       const rect = canvas.getBoundingClientRect();
       const mx = e.clientX - rect.left;
       const my = e.clientY - rect.top;
@@ -1763,7 +1789,7 @@
       draw();
     });
 
-    canvas.addEventListener("dblclick", (e) => {
+    canvas.addEventListener("dblclick", function(e) {
       const rect = canvas.getBoundingClientRect();
       const mx = e.clientX - rect.left;
       const my = e.clientY - rect.top;
@@ -1772,9 +1798,7 @@
       handleCellDoubleAction(cell);
     });
 
-    // スマホ用タッチ（ダブルタップ判定＋ドラッグ）
-    canvas.addEventListener("touchstart", (e) => {
-      e.preventDefault();
+    canvas.addEventListener("touchstart", function(e) {
       if (e.touches.length !== 1) return;
       const t = e.touches[0];
       const rect = canvas.getBoundingClientRect();
@@ -1798,17 +1822,16 @@
       }
       canvas.classList.add("dragging");
       draw();
-    }, { passive: false });
+    }, { passive: true });
 
-    canvas.addEventListener("touchmove", (e) => {
-      e.preventDefault();
+    canvas.addEventListener("touchmove", function(e) {
       if (e.touches.length !== 1) return;
       const t = e.touches[0];
-      const rect = canvas.getBoundingClientRect();
-      const mx = t.clientX - rect.left;
-      const my = t.clientY - rect.top;
 
       if (draggingBaseId) {
+        const rect = canvas.getBoundingClientRect();
+        const mx = t.clientX - rect.left;
+        const my = t.clientY - rect.top;
         const cell = screenToGrid(mx, my);
         if (!lastDragCell || cell.x !== lastDragCell.x || cell.y !== lastDragCell.y) {
           moveBaseToGrid(draggingBaseId, cell.x, cell.y);
@@ -1825,10 +1848,9 @@
       offsetX += dx;
       offsetY += dy;
       draw();
-    }, { passive: false });
+    }, { passive: true });
 
-    window.addEventListener("touchend", (e) => {
-      e.preventDefault();
+    window.addEventListener("touchend", function(e) {
       const now = Date.now();
       const rect = canvas.getBoundingClientRect();
 
@@ -1846,6 +1868,7 @@
             lastTapCell.x === cell.x &&
             lastTapCell.y === cell.y
           ) {
+            // ダブルタップ → 基地追加/編集
             handleCellDoubleAction(cell);
             lastTapTime = 0;
             lastTapCell = null;
@@ -1860,96 +1883,57 @@
       draggingBaseId = null;
       lastDragCell = null;
       canvas.classList.remove("dragging");
-    }, { passive: false });
+    });
 
-    // ===== ボタン・UIイベント =====
-    zoomInBtn.addEventListener("click", () => {
+    zoomInBtn.addEventListener("click", function() {
       const rect = canvas.getBoundingClientRect();
       zoomAt(rect.width / 2, rect.height / 2, 0.2);
     });
-    zoomOutBtn.addEventListener("click", () => {
+    zoomOutBtn.addEventListener("click", function() {
       const rect = canvas.getBoundingClientRect();
       zoomAt(rect.width / 2, rect.height / 2, -0.2);
     });
 
-    toggleSidebarBtn.addEventListener("click", () => {
+    toggleSidebarBtn.addEventListener("click", function() {
       sidebarEl.classList.toggle("collapsed");
       toggleSidebarBtn.textContent = sidebarEl.classList.contains("collapsed") ? "＋" : "－";
     });
 
-    exportBtn.addEventListener("click", exportBasesToFile);
-    importBtn.addEventListener("click", () => importFileInput.click());
-    importFileInput.addEventListener("change", handleImportFile);
-
-    filterKindSelect.addEventListener("change", () => {
-      filterKind = filterKindSelect.value;
-      updateBaseListUI();
-      draw();
-    });
-    sortKeySelect.addEventListener("change", () => {
-      sortKey = sortKeySelect.value;
-      updateBaseListUI();
-      draw();
-    });
-
-    popBtn.addEventListener("click", () => {
-      showBasePopups = !showBasePopups;
-      popBtn.classList.toggle("toggle-on", showBasePopups);
-      draw();
-    });
-    popBtn.classList.add("toggle-on");
-
-    memoPopBtn.addEventListener("click", () => {
-      showMemoPopups = !showMemoPopups;
-      memoPopBtn.classList.toggle("toggle-on", showMemoPopups);
-      draw();
-    });
-
-    clearBtn.addEventListener("click", () => {
-      if (!bases.length) {
-        alert("削除する基地がありません。");
-        return;
-      }
-      if (confirm("全ての基地を一括削除しますか？")) {
-        bases.length = 0;
-        saveBases();
-        updateBaseListUI();
-        draw();
-      }
-    });
-
-    copyBtn.addEventListener("click", async () => {
-      if (bases.length === 0) {
+    copyBtn.addEventListener("click", async function() {
+      const list = getFilteredBases();
+      if (list.length === 0) {
         alert("コピーする基地がありません。");
         return;
       }
-      const filtered = bases.filter(passesFilter).sort(compareBase);
-      const allianceNames = filtered.map(b => (allianceMap[b.allianceKey] || ALLIANCES[0]).name);
-      const baseNames = filtered.map(b => b.name);
-      const coords = filtered.map(b => `X${b.anchor.x} Y${b.anchor.y}`);
-
-      const maxAlliance = Math.max(...allianceNames.map(s => s.length));
-      const maxBase = Math.max(...baseNames.map(s => s.length));
-
-      const lines = filtered.map((b, idx) => {
-        const aName = allianceNames[idx].padEnd(maxAlliance, " ");
-        const bName = baseNames[idx].padEnd(maxBase, " ");
-        const coord = coords[idx];
-        return `${aName}  ${bName}  ${coord}`;
+      const lines = list.map(function(b) {
+        const alliance = allianceMap[b.allianceKey] || ALLIANCES[0];
+        return alliance.name + "\t" + b.name + "\tX" + b.anchor.x + " Y" + b.anchor.y;
       });
-
       const text = lines.join("\n");
       try {
         await navigator.clipboard.writeText(text);
-        alert("同盟名・基地名・座標をコピーしました。");
+        alert("同盟・基地名・座標をコピーしました。");
       } catch (e) {
         console.warn(e);
         alert("クリップボードへのコピーに失敗しました。");
       }
     });
 
+    clearBtn.addEventListener("click", function() {
+      if (!bases.length) {
+        alert("削除する基地がありません。");
+        return;
+      }
+      if (!confirm("全ての基地を一括削除しますか？")) return;
+      bases.length = 0;
+      saveBases();
+      updateBaseListUI();
+      updateTotals();
+      draw();
+    });
+
     function moveBaseToGrid(baseId, gx, gy) {
-      const base = bases.find(b => b.id === baseId);
+      const base = bases.find(function(b) { return b.id === baseId; });
       if (!base) return;
       const cells = createBaseCellsForAnchor(gx, gy, baseId);
       if (!cells) return;
@@ -1957,19 +1941,114 @@
       base.anchor = { x: gx, y: gy };
       saveBases();
       updateBaseListUI();
+      updateTotals();
       draw();
     }
 
-    function hexToRgba(hex, alpha) {
-      let c = hex.replace("#", "");
-      if (c.length === 3) {
-        c = c.split("").map(ch => ch + ch).join("");
+    // 自動配置
+    autoBtn.addEventListener("click", function() {
+      if (!ALLIANCES.length) return;
+      const allianceKey = prompt(
+        "自動配置する同盟キーを入力してください。\n例: B777 / EclA / ALLY / ENEMY",
+        "B777"
+      );
+      if (!allianceKey) return;
+      const alliance = allianceMap[String(allianceKey).trim()];
+      if (!alliance) {
+        alert("その同盟キーは存在しません。");
+        return;
       }
-      const r = parseInt(c.slice(0,2), 16);
-      const g = parseInt(c.slice(2,4), 16);
-      const b = parseInt(c.slice(4,6), 16);
-      return `rgba(${r},${g},${b},${alpha})`;
+      const countStr = prompt("何個自動配置しますか？（最大50 推奨）", "10");
+      if (!countStr) return;
+      let count = parseInt(countStr, 10);
+      if (isNaN(count) || count <= 0) return;
+      if (count > 50) count = 50;
+
+      const teamChoice = prompt("チームを指定してください。（首都 / 砲台 / 援護 / 空欄でなし）", "援護") || "";
+      const normTeam =
+        teamChoice === "首都" || teamChoice === "砲台" || teamChoice === "援護"
+          ? teamChoice
+          : "";
+
+      const usedNames = new Set(bases.map(b => b.name));
+      const freeNames = alliance.members.filter(n => !usedNames.has(n));
+      if (!freeNames.length) {
+        alert("この同盟で新しく配置できる名前がありません。");
+        return;
+      }
+
+      let placed = 0;
+      outerLoop:
+      for (let i = 0; i < freeNames.length && placed < count; i++) {
+        const name = freeNames[i];
+        for (let gy = VIEW_MIN_Y; gy <= VIEW_MAX_Y; gy++) {
+          for (let gx = VIEW_MIN_X; gx <= VIEW_MAX_X; gx++) {
+            const cells = createBaseCellsForAnchor(gx, gy, null);
+            if (!cells) continue;
+            const id = Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+            bases.push({
+              id: id,
+              side: alliance.side,
+              allianceKey: alliance.key,
+              name: name,
+              team: normTeam,
+              status: "参加",
+              level: 27,
+              tier: "T9",
+              memo: "",
+              cells: cells,
+              anchor: { x: gx, y: gy }
+            });
+            placed++;
+            if (placed >= count) break outerLoop;
+            break;
+          }
+        }
+      }
+
+      if (!placed) {
+        alert("自動配置できる空きスペースがありませんでした。");
+      } else {
+        saveBases();
+        updateBaseListUI();
+        updateTotals();
+        draw();
+      }
+    });
+
+    // 高DPI対応＆初期化
+    function resizeCanvas() {
+      const rect = canvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      if (!resizeCanvas.initialized) {
+        resizeCanvas.initialized = true;
+
+        const midWorld = gridToWorld(CAPITAL_CENTER_X, CAPITAL_CENTER_Y);
+        offsetX = rect.width / 2 - midWorld.x * scale;
+        offsetY = rect.height / 2 - midWorld.y * scale;
+
+        desertPolygonWorld = desertVerticesGrid.map(v => gridToWorld(v.x, v.y));
+        blockedPolygonWorld = blockedVerticesGrid.map(v => gridToWorld(v.x, v.y));
+
+        initDialogSelectors();
+        loadBases();
+        updateBaseListUI();
+        updateTotals();
+
+        if (window.innerWidth <= 768) {
+          sidebarEl.classList.add("collapsed");
+          toggleSidebarBtn.textContent = "＋";
+        }
+      }
+      draw();
     }
+
+    window.addEventListener("resize", resizeCanvas);
+    resizeCanvas();
   </script>
 </body>
 </html>
