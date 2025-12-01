@@ -4,19 +4,14 @@
   <meta charset="UTF-8" />
   <title>284 Capital</title>
 
-  <!-- ▼ favicon（PNG） -->
+  <!-- favicon / iPhone ホーム追加 -->
   <link rel="icon" type="image/png" href="favicon.png">
-
-  <!-- ▼ iPhone / iPad ホーム画面追加用（PNG推奨：180×180） -->
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
-
-  <!-- ▼ iOS Safari 設定 -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
-  <!-- スマホで強制的に1倍＆ユーザー拡大禁止（ダブルタップ拡大対策） -->
-  <meta name="viewport"
-        content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <!-- スマホでちゃんとスマホレイアウト -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
 
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -34,14 +29,15 @@
       display: block;
       background: radial-gradient(circle at top, #1d2838 0, #050608 50%);
       cursor: grab;
-      touch-action: none; /* ダブルタップ拡大などブラウザ側ジェスチャー無効化 */
+      touch-action: none; /* ダブルタップ拡大を止める */
     }
     #map-canvas.dragging { cursor: grabbing; }
 
+    /* HUD（Zoom / Cell） */
     .hud {
       position: fixed;
       right: 10px;
-      top: 8px;
+      bottom: 10px;
       padding: 7px 11px;
       border-radius: 999px;
       background: rgba(0, 0, 0, .65);
@@ -84,13 +80,13 @@
       align-items: center;
       justify-content: space-between;
       gap: 6px;
-      margin-bottom: 6px;
+      margin-bottom: 8px;
     }
     .sidebar-title {
       font-size: 13px;
       text-transform: uppercase;
       letter-spacing: 0.06em;
-      opacity: 0.8;
+      opacity: 0.85;
     }
     .sidebar-actions {
       display: flex;
@@ -109,7 +105,7 @@
       background: rgba(255,255,255,0.1);
       color: #f5f5f5;
       white-space: nowrap;
-      min-width: 32px;
+      min-width: 30px;
     }
     .sidebar-actions button:hover {
       background: rgba(255,255,255,0.2);
@@ -120,27 +116,33 @@
       min-width: 28px;
     }
 
+    /* フィルタ・ソート行 */
+    .sidebar-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 6px;
+      font-size: 12px;
+    }
+    .sidebar-controls label {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .sidebar-controls select {
+      font-size: 12px;
+      padding: 2px 4px;
+      background: #111;
+      color: #f5f5f5;
+      border-radius: 6px;
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+
     #base-list-wrapper {
       display: flex;
       flex-direction: column;
       flex: 1;
       min-height: 0;
-      margin-top: 4px;
-    }
-
-    .list-toolbar {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      margin-bottom: 4px;
-      font-size: 12px;
-    }
-    .list-toolbar span {
-      opacity: 0.8;
-    }
-    .list-toolbar select {
-      font-size: 12px;
-      padding: 2px 4px;
     }
 
     #base-list {
@@ -151,15 +153,17 @@
       flex: 1;
     }
 
-    .stats {
+    .sidebar-summary {
       margin-top: 4px;
       font-size: 11px;
-      opacity: 0.85;
-      line-height: 1.4;
+      opacity: 0.8;
+      border-top: 1px solid rgba(255,255,255,0.08);
+      padding-top: 4px;
+      white-space: pre-line;
     }
 
     .sidebar-note {
-      margin-top: 6px;
+      margin-top: 4px;
       font-size: 11px;
       opacity: 0.7;
       border-top: 1px solid rgba(255,255,255,0.08);
@@ -231,6 +235,8 @@
     }
 
     .sidebar.collapsed #base-list-wrapper,
+    .sidebar.collapsed .sidebar-controls,
+    .sidebar.collapsed .sidebar-summary,
     .sidebar.collapsed .sidebar-note {
       display: none;
     }
@@ -239,7 +245,7 @@
     .zoom-buttons {
       position: fixed;
       right: 10px;
-      bottom: 80px;
+      bottom: 72px;
       display: flex;
       flex-direction: column;
       gap: 4px;
@@ -256,22 +262,28 @@
       cursor: pointer;
     }
 
-    /* select の文字色が背景と被らないように */
-    select, option {
-      color: #000;
-      background: #fff;
+    /* 基地ポップ / メモポップトグルボタンの状態 */
+    .toggle-on {
+      background: rgba(44, 123, 229, 0.9) !important;
+    }
+    .toggle-on:hover {
+      background: rgba(80, 150, 240, 1) !important;
     }
 
     @media (max-width: 768px) {
+      /* HUD は右上へ */
       .hud {
-        right: 8px;
         top: 8px;
+        right: 8px;
+        bottom: auto;
         font-size: 12px;
       }
+      /* ズームボタンは画面中央右あたりへ（リストと重ならない） */
       .zoom-buttons {
+        top: 50%;
+        bottom: auto;
         right: 8px;
-        bottom: 50%;              /* リストと被らないように中段に移動 */
-        transform: translateY(50%);
+        transform: translateY(-50%);
       }
       .zoom-buttons button {
         width: 44px;
@@ -285,7 +297,7 @@
         top: auto;
         bottom: 0;
         border-radius: 16px 16px 0 0;
-        max-height: 45%;
+        max-height: 48%;
         font-size: 14px;
       }
       .sidebar-title {
@@ -313,43 +325,57 @@
         <button id="copy-btn">Copy</button>
         <button id="export-btn">Exp</button>
         <button id="import-btn">Imp</button>
-        <button id="toggle-popups-label-btn">Pop</button>
-        <button id="toggle-memo-pop-btn">Memo</button>
+        <button id="pop-btn">Pop</button>
+        <button id="memo-pop-btn">Memo</button>
+        <button id="clear-btn">AllDel</button>
         <button id="toggle-sidebar">－</button>
         <input type="file" id="import-file" accept="application/json" style="display:none" />
       </div>
     </div>
 
-    <div id="base-list-wrapper">
-      <div class="list-toolbar">
-        <span>Sort:</span>
-        <select id="sort-select">
-          <option value="alliance">同盟</option>
-          <option value="name">名前</option>
-          <option value="level">Lv.</option>
-          <option value="tier">T</option>
+    <div class="sidebar-controls">
+      <label>
+        Filter:
+        <select id="filter-kind">
+          <option value="ALL">全て</option>
+          <option value="ALLY">味方</option>
+          <option value="ENEMY">敵</option>
+          <option value="CAPITAL">首都</option>
+          <option value="CANNON">大砲</option>
+          <option value="SUPPORT">援護</option>
         </select>
-      </div>
-      <ul id="base-list"></ul>
-      <div class="stats">
-        <div>基地数: <span id="stat-base-count">0</span></div>
-        <div>Lv合計: <span id="stat-lv"></span></div>
-        <div>T合計: <span id="stat-tier"></span></div>
-      </div>
+      </label>
+      <label>
+        Sort:
+        <select id="sort-key">
+          <option value="ALLIANCE">同盟</option>
+          <option value="NAME">基地名</option>
+          <option value="LEVEL">Lv.</option>
+          <option value="TIER">T</option>
+          <option value="TEAM">チーム</option>
+          <option value="STATUS">状態</option>
+        </select>
+      </label>
     </div>
+
+    <div id="base-list-wrapper">
+      <ul id="base-list"></ul>
+    </div>
+
+    <div class="sidebar-summary" id="summary-box"></div>
 
     <div class="sidebar-note">
       <div class="note-pc">
         【PC】空きマス：ダブルクリックで基地追加 / 基地マス：ダブルクリックで編集・削除 / 左ドラッグで移動 / ホイールや＋－ボタンでズーム<br>
         ・Copy: 同盟名・基地名・座標をクリップボードへ<br>
         ・Exp/Imp: JSONファイルでエクスポート／インポート<br>
-        ・Pop: マップ上の基地ポップON/OFF / Memo: メモだけのポップON/OFF
+        ・Pop: 基地ポップ表示 ON/OFF / Memo: メモだけポップ表示 ON/OFF
       </div>
       <div class="note-sp">
-        【スマホ】空きマス：同じマスを素早く2回タップで基地追加 / 基地マス：2回タップで編集・削除 / 1本指ドラッグで移動 / ピンチまたは＋－ボタンでズーム<br>
+        【スマホ】空きマス：同じマスを素早く2回タップで基地追加 / 基地マス：2回タップで編集・削除 / 1本指ドラッグで移動 / ＋－ボタンでズーム<br>
         ・Copy: 同盟名・基地名・座標をコピー<br>
         ・Exp/Imp: JSONファイルで保存／読み込み<br>
-        ・Pop: マップ上の基地ポップON/OFF / Memo: メモだけポップON/OFF
+        ・Pop: 基地ポップ表示 ON/OFF / Memo: メモだけポップ表示 ON/OFF
       </div>
     </div>
   </div>
@@ -373,33 +399,49 @@
       <div style="font-size:15px; font-weight:600; margin-bottom:8px;">基地の追加 / 編集</div>
       <div style="display:flex; flex-direction:column; gap:8px;">
         <label>
+          <span>陣営</span><br/>
+          <select id="dlg-side" style="width:100%; margin-top:2px; font-size:14px; background:#111; color:#f5f5f5;">
+            <option value="ALLY">味方</option>
+            <option value="ENEMY">敵</option>
+          </select>
+        </label>
+        <label>
           <span>所属同盟</span><br/>
-          <select id="dlg-alliance" style="width:100%; margin-top:2px; font-size:14px;"></select>
+          <select id="dlg-alliance" style="width:100%; margin-top:2px; font-size:14px; background:#111; color:#f5f5f5;"></select>
         </label>
         <label>
           <span>基地名</span><br/>
-          <select id="dlg-name" style="width:100%; margin-top:2px; font-size:14px;"></select>
+          <select id="dlg-name" style="width:100%; margin-top:2px; font-size:14px; background:#111; color:#f5f5f5;"></select>
+        </label>
+        <label id="team-row">
+          <span>チーム</span><br/>
+          <select id="dlg-team" style="width:100%; margin-top:2px; font-size:14px; background:#111; color:#f5f5f5;">
+            <option value="NONE">なし</option>
+            <option value="CAPITAL">首都</option>
+            <option value="CANNON">大砲</option>
+            <option value="SUPPORT">援護</option>
+          </select>
         </label>
         <label>
           <span>参加状態</span><br/>
-          <select id="dlg-status" style="width:100%; margin-top:2px; font-size:14px;">
+          <select id="dlg-status" style="width:100%; margin-top:2px; font-size:14px; background:#111; color:#f5f5f5;">
             <option value="参加">参加</option>
             <option value="不参加">不参加</option>
-            <option value="不明" selected>不明</option>
+            <option value="不明">不明</option>
           </select>
         </label>
         <label>
           <span>レベル</span><br/>
-          <select id="dlg-level" style="width:100%; margin-top:2px; font-size:14px;"></select>
+          <select id="dlg-level" style="width:100%; margin-top:2px; font-size:14px; background:#111; color:#f5f5f5;"></select>
         </label>
         <label>
           <span>Tランク</span><br/>
-          <select id="dlg-tier" style="width:100%; margin-top:2px; font-size:14px;"></select>
+          <select id="dlg-tier" style="width:100%; margin-top:2px; font-size:14px; background:#111; color:#f5f5f5;"></select>
         </label>
         <label>
           <span>メモ</span><br/>
-          <textarea id="dlg-memo"
-                    style="width:100%; margin-top:2px; font-size:14px; min-height:40px; resize:vertical;"></textarea>
+          <textarea id="dlg-memo" rows="2"
+            style="width:100%; margin-top:2px; font-size:13px; background:#111; color:#f5f5f5; border-radius:6px; border:1px solid rgba(255,255,255,0.2);"></textarea>
         </label>
         <div style="font-size:12px; opacity:0.7;" id="dlg-coord-text"></div>
       </div>
@@ -427,25 +469,27 @@
     const cellDisplay = document.getElementById("cell-display");
     const baseListEl = document.getElementById("base-list");
     const sidebarEl = document.getElementById("sidebar");
+
     const copyBtn = document.getElementById("copy-btn");
     const toggleSidebarBtn = document.getElementById("toggle-sidebar");
     const zoomInBtn = document.getElementById("zoom-in");
     const zoomOutBtn = document.getElementById("zoom-out");
-    const sortSelect = document.getElementById("sort-select");
-    const statBaseCountEl = document.getElementById("stat-base-count");
-    const statLvEl = document.getElementById("stat-lv");
-    const statTierEl = document.getElementById("stat-tier");
-
     const exportBtn = document.getElementById("export-btn");
     const importBtn = document.getElementById("import-btn");
     const importFileInput = document.getElementById("import-file");
-
-    const togglePopupsLabelBtn = document.getElementById("toggle-popups-label-btn");
-    const toggleMemoPopBtn = document.getElementById("toggle-memo-pop-btn");
+    const summaryBox = document.getElementById("summary-box");
+    const filterKindSelect = document.getElementById("filter-kind");
+    const sortKeySelect = document.getElementById("sort-key");
+    const popBtn = document.getElementById("pop-btn");
+    const memoPopBtn = document.getElementById("memo-pop-btn");
+    const clearBtn = document.getElementById("clear-btn");
 
     const baseDialog = document.getElementById("base-dialog");
+    const dlgSide = document.getElementById("dlg-side");
     const dlgAlliance = document.getElementById("dlg-alliance");
     const dlgName = document.getElementById("dlg-name");
+    const dlgTeam = document.getElementById("dlg-team");
+    const teamRow = document.getElementById("team-row");
     const dlgStatus = document.getElementById("dlg-status");
     const dlgLevel = document.getElementById("dlg-level");
     const dlgTier = document.getElementById("dlg-tier");
@@ -463,13 +507,16 @@
     const HEX_VERT_SPACING  = 1.5 * HEX_SIZE;
     const HEX_HORIZ_SPACING = HEX_WIDTH;
     const EDGE_THICKNESS_WORLD = HEX_SIZE * 0.8;
-    const STORAGE_KEY = "hexmap_bases_v8";
+    const STORAGE_KEY = "hexmap_bases_v9";
 
     let scale = 0.35;
     let offsetX = 0;
     let offsetY = 0;
     const MIN_SCALE = 0.08;
     const MAX_SCALE = 3.0;
+
+    let canvasCssWidth = 0;
+    let canvasCssHeight = 0;
 
     let isPanning = false;
     let lastMouseX = 0;
@@ -489,10 +536,6 @@
     const bases = [];
     let baseCount = 0;
 
-    let currentSort = "alliance";
-    let showBasePopups = true;
-    let showMemoPopups = true;
-
     const CAPITAL_CENTER_X = 500;
     const CAPITAL_CENTER_Y = 500;
     const VIEW_RADIUS = 50;
@@ -501,7 +544,7 @@
     const VIEW_MIN_Y = Math.max(0, CAPITAL_CENTER_Y - VIEW_RADIUS);
     const VIEW_MAX_Y = Math.min(GRID_MAX_Y, CAPITAL_CENTER_Y + VIEW_RADIUS);
 
-    // 不特定多数用：敵・味方 1000人
+    // ★ 敵/味方 1000人分の仮メンバー
     const ENEMY_MEMBERS = Array.from({ length: 1000 }, (_, i) =>
       `敵${String(i + 1).padStart(3, "0")}`
     );
@@ -552,21 +595,20 @@
         ]
       },
       {
-        key: "ENEMY",
-        name: "敵",
-        color: "#ff6666",
-        textColor: "#2a0000",
-        members: ENEMY_MEMBERS
-      },
-      {
         key: "ALLY",
         name: "味方",
         color: "#66ff99",
         textColor: "#002011",
         members: ALLY_MEMBERS
+      },
+      {
+        key: "ENEMY",
+        name: "敵",
+        color: "#ff6666",
+        textColor: "#2a0000",
+        members: ENEMY_MEMBERS
       }
     ];
-
     const allianceMap = {};
     ALLIANCES.forEach(a => { allianceMap[a.key] = a; });
 
@@ -599,7 +641,6 @@
       { x: 492, y: 482 },{ x: 492, y: 481 },{ x: 493, y: 482 },{ x: 494, y: 482 },
       { x: 490, y: 481 },{ x: 493, y: 481 },{ x: 494, y: 482 }
     ];
-
     let desertPolygonWorld = [];
     let blockedPolygonWorld = [];
 
@@ -612,6 +653,17 @@
       { dq: 0, dr: -1 },
       { dq: 1, dr: -1 }
     ];
+
+    // フィルター・ソート・POP 状態
+    let filterKind = "ALL";
+    let sortKey = "ALLIANCE";
+    let showBasePopups = true;
+    let showMemoPopups = false;
+
+    // ダイアログ状態
+    let dialogMode = "create"; // "create" | "edit"
+    let dialogCell = null;
+    let dialogEditingBase = null;
 
     function oddrToAxial(col, row) {
       const q = col - (row - (row & 1)) / 2;
@@ -626,14 +678,12 @@
 
     function resizeCanvas() {
       const rect = canvas.getBoundingClientRect();
+      canvasCssWidth = rect.width;
+      canvasCssHeight = rect.height;
       const dpr = window.devicePixelRatio || 1;
-
       canvas.width = rect.width * dpr;
       canvas.height = rect.height * dpr;
-      canvas.style.width = rect.width + "px";
-      canvas.style.height = rect.height + "px";
-
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0); // 高解像度描画
 
       if (!resizeCanvas.initialized) {
         resizeCanvas.initialized = true;
@@ -727,6 +777,7 @@
     function findBaseAtCell(gx, gy) {
       return bases.find(b => b.cells.some(c => c.x === gx && c.y === gy)) || null;
     }
+
     function createBaseCellsForAnchor(gx, gy, ignoreBaseId = null) {
       const { q, r } = oddrToAxial(gx, gy);
       const cells = basePatternAxial.map(off => {
@@ -744,6 +795,7 @@
       }
       return cells;
     }
+
     function deleteBaseById(id) {
       const idx = bases.findIndex(b => b.id === id);
       if (idx !== -1) {
@@ -758,8 +810,10 @@
       return {
         bases: bases.map(b => ({
           id: b.id,
+          side: b.side,
           allianceKey: b.allianceKey,
           name: b.name,
+          team: b.team,
           status: b.status,
           level: b.level,
           tier: b.tier,
@@ -768,6 +822,7 @@
         }))
       };
     }
+
     function saveBases() {
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(makeSerializableData()));
@@ -775,6 +830,7 @@
         console.warn("saveBases error:", e);
       }
     }
+
     function loadBases() {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) return;
@@ -787,8 +843,10 @@
           if (!cells) return;
           bases.push({
             id: rec.id || (Date.now().toString(36) + Math.random().toString(36).slice(2,7)),
+            side: rec.side || "ALLY",
             allianceKey: rec.allianceKey || "B777",
             name: rec.name || "基地",
+            team: rec.team || "NONE",
             status: rec.status || "不明",
             level: rec.level ?? null,
             tier: rec.tier || "T1",
@@ -817,8 +875,10 @@
         if (!cells) return;
         bases.push({
           id: rec.id || (Date.now().toString(36) + Math.random().toString(36).slice(2,7)),
+          side: rec.side || "ALLY",
           allianceKey: rec.allianceKey || "B777",
           name: rec.name || "基地",
+          team: rec.team || "NONE",
           status: rec.status || "不明",
           level: rec.level ?? null,
           tier: rec.tier || "T1",
@@ -832,6 +892,7 @@
       updateBaseListUI();
       draw();
     }
+
     function exportBasesToFile() {
       const data = makeSerializableData();
       const json = JSON.stringify(data, null, 2);
@@ -845,6 +906,7 @@
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     }
+
     function handleImportFile(e) {
       const file = e.target.files[0];
       if (!file) return;
@@ -863,23 +925,9 @@
       reader.readAsText(file, "utf-8");
     }
 
-    exportBtn.addEventListener("click", exportBasesToFile);
-    importBtn.addEventListener("click", () => importFileInput.click());
-    importFileInput.addEventListener("change", handleImportFile);
-
-    let dialogMode = "create";
-    let dialogCell = null;
-    let dialogEditingBase = null;
-
+    // ===== ダイアログ関連 =====
     function initDialogSelectors() {
-      dlgAlliance.innerHTML = "";
-      ALLIANCES.forEach(a => {
-        const opt = document.createElement("option");
-        opt.value = a.key;
-        opt.textContent = a.name;
-        dlgAlliance.appendChild(opt);
-      });
-
+      // Lv: 30 -> 1
       dlgLevel.innerHTML = "";
       for (let lv = 30; lv >= 1; lv--) {
         const opt = document.createElement("option");
@@ -887,7 +935,7 @@
         opt.textContent = `Lv.${lv}`;
         dlgLevel.appendChild(opt);
       }
-
+      // T: 10 -> 1
       dlgTier.innerHTML = "";
       for (let t = 10; t >= 1; t--) {
         const opt = document.createElement("option");
@@ -895,6 +943,32 @@
         opt.textContent = `T${t}`;
         dlgTier.appendChild(opt);
       }
+      // Side 初期値は味方
+      dlgSide.value = "ALLY";
+      updateAllianceSelectorForSide("ALLY");
+    }
+
+    function updateAllianceSelectorForSide(side) {
+      dlgAlliance.innerHTML = "";
+      let keys;
+      if (side === "ALLY") {
+        keys = ["ALLY", "B777", "EclA"];
+        teamRow.style.display = "";
+      } else {
+        keys = ["ENEMY"];
+        teamRow.style.display = "none";
+      }
+      keys.forEach(k => {
+        const a = allianceMap[k];
+        if (!a) return;
+        const opt = document.createElement("option");
+        opt.value = a.key;
+        opt.textContent = a.name;
+        dlgAlliance.appendChild(opt);
+      });
+      const key = dlgAlliance.value;
+      const currentName = dialogEditingBase ? dialogEditingBase.name : null;
+      updateNameOptionsForAlliance(key, currentName);
     }
 
     function updateNameOptionsForAlliance(allianceKey, currentName = null) {
@@ -928,13 +1002,14 @@
       dialogCell = cell;
       dialogEditingBase = null;
       dlgDelete.style.display = "none";
-      dlgStatus.value = "不明";
 
-      const defaultAllianceKey = ALLIANCES[0]?.key || "B777";
-      dlgAlliance.value = defaultAllianceKey;
-      updateNameOptionsForAlliance(defaultAllianceKey, null);
-      dlgLevel.value = "30";
-      dlgTier.value = "T10";
+      // デフォルト：味方・参加・Lv27・T9・チームなし
+      dlgSide.value = "ALLY";
+      updateAllianceSelectorForSide("ALLY");
+      dlgStatus.value = "参加";
+      dlgLevel.value = "27";
+      dlgTier.value = "T9";
+      dlgTeam.value = "NONE";
       dlgMemo.value = "";
 
       dlgCoordText.textContent = `配置セル: X${cell.x} Y${cell.y}`;
@@ -947,12 +1022,15 @@
       dialogCell = base.anchor;
       dlgDelete.style.display = "inline-block";
 
+      dlgSide.value = base.side || "ALLY";
+      updateAllianceSelectorForSide(dlgSide.value);
       dlgAlliance.value = base.allianceKey || "B777";
-      updateNameOptionsForAlliance(base.allianceKey || "B777", base.name);
+      updateNameOptionsForAlliance(dlgAlliance.value, base.name);
       dlgName.value = base.name;
       dlgStatus.value = base.status || "不明";
       if (base.level != null) dlgLevel.value = String(base.level);
       dlgTier.value = base.tier || "T1";
+      dlgTeam.value = base.team || "NONE";
       dlgMemo.value = base.memo || "";
 
       dlgCoordText.textContent = `配置セル: X${base.anchor.x} Y${base.anchor.y}`;
@@ -964,6 +1042,10 @@
       dialogCell = null;
       dialogEditingBase = null;
     }
+
+    dlgSide.addEventListener("change", () => {
+      updateAllianceSelectorForSide(dlgSide.value);
+    });
 
     dlgAlliance.addEventListener("change", () => {
       const key = dlgAlliance.value;
@@ -982,12 +1064,14 @@
     });
 
     dlgOk.addEventListener("click", () => {
+      const side = dlgSide.value;
       const allianceKey = dlgAlliance.value;
       const alliance = allianceMap[allianceKey] || ALLIANCES[0];
       const name = dlgName.value || "基地";
       const status = dlgStatus.value || "不明";
       const level = Number(dlgLevel.value || "0");
       const tier = dlgTier.value || "T1";
+      const team = side === "ALLY" ? dlgTeam.value : "NONE";
       const memo = dlgMemo.value || "";
 
       if (!dialogCell) { closeBaseDialog(); return; }
@@ -1003,11 +1087,13 @@
         const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
         bases.push({
           id,
+          side,
           allianceKey: alliance.key,
           name,
           status,
           level: isNaN(level) ? null : level,
           tier,
+          team,
           memo,
           cells,
           anchor: { x: gx, y: gy }
@@ -1019,11 +1105,13 @@
           alert("この位置には基地を配置できません。");
           return;
         }
+        dialogEditingBase.side = side;
         dialogEditingBase.allianceKey = alliance.key;
         dialogEditingBase.name = name;
         dialogEditingBase.status = status;
         dialogEditingBase.level = isNaN(level) ? null : level;
         dialogEditingBase.tier = tier;
+        dialogEditingBase.team = team;
         dialogEditingBase.memo = memo;
         dialogEditingBase.cells = cells;
         dialogEditingBase.anchor = { x: gx, y: gy };
@@ -1035,90 +1123,79 @@
       closeBaseDialog();
     });
 
-    sortSelect.addEventListener("change", () => {
-      currentSort = sortSelect.value;
-      updateBaseListUI();
-    });
-
-    function sortBasesArray(arr) {
-      const sortKey = currentSort;
-      return [...arr].sort((a, b) => {
-        const allianceA = allianceMap[a.allianceKey]?.name || a.allianceKey;
-        const allianceB = allianceMap[b.allianceKey]?.name || b.allianceKey;
-        const la = a.level || 0;
-        const lb = b.level || 0;
-        const ta = parseInt(String(a.tier || "T1").replace("T", ""), 10) || 1;
-        const tb = parseInt(String(b.tier || "T1").replace("T", ""), 10) || 1;
-
-        switch (sortKey) {
-          case "name":
-            if (a.name !== b.name) return a.name.localeCompare(b.name);
-            if (allianceA !== allianceB) return allianceA.localeCompare(allianceB);
-            return lb - la;
-          case "level":
-            if (la !== lb) return lb - la; // Lv高い順
-            if (ta !== tb) return tb - ta;
-            return a.name.localeCompare(b.name);
-          case "tier":
-            if (ta !== tb) return tb - ta; // T高い順
-            if (la !== lb) return lb - la;
-            return a.name.localeCompare(b.name);
-          case "alliance":
-          default:
-            if (allianceA !== allianceB) return allianceA.localeCompare(allianceB);
-            if (a.name !== b.name) return a.name.localeCompare(b.name);
-            return lb - la;
-        }
-      });
+    // ===== リスト UI + ソート・集計 =====
+    function passesFilter(b) {
+      switch (filterKind) {
+        case "ALLY": return b.side === "ALLY";
+        case "ENEMY": return b.side === "ENEMY";
+        case "CAPITAL": return b.team === "CAPITAL";
+        case "CANNON": return b.team === "CANNON";
+        case "SUPPORT": return b.team === "SUPPORT";
+        default: return true;
+      }
     }
 
-    function updateStats() {
-      statBaseCountEl.textContent = bases.length;
+    function compareBase(a, b) {
+      const allianceA = allianceMap[a.allianceKey] || ALLIANCES[0];
+      const allianceB = allianceMap[b.allianceKey] || ALLIANCES[0];
+      const nameA = a.name || "";
+      const nameB = b.name || "";
+      const lvA = a.level || 0;
+      const lvB = b.level || 0;
+      const tierNumA = parseInt((a.tier || "T1").substring(1), 10) || 1;
+      const tierNumB = parseInt((b.tier || "T1").substring(1), 10) || 1;
 
-      const lvCounts = Array(31).fill(0); // index 1..30
-      const tierCounts = Array(11).fill(0); // index 1..10
-
-      bases.forEach(b => {
-        if (b.level != null && b.level >= 1 && b.level <= 30) {
-          lvCounts[b.level]++;
-        }
-        const t = parseInt(String(b.tier || "T1").replace("T", ""), 10);
-        if (!isNaN(t) && t >= 1 && t <= 10) {
-          tierCounts[t]++;
-        }
-      });
-
-      const lvParts = [];
-      for (let lv = 30; lv >= 1; lv--) {
-        if (lvCounts[lv] > 0) {
-          lvParts.push(`Lv.${lv}:${lvCounts[lv]}`);
-        }
+      switch (sortKey) {
+        case "NAME":
+          return nameA.localeCompare(nameB);
+        case "LEVEL":
+          if (lvA !== lvB) return lvB - lvA;
+          return nameA.localeCompare(nameB);
+        case "TIER":
+          if (tierNumA !== tierNumB) return tierNumB - tierNumA;
+          return nameA.localeCompare(nameB);
+        case "TEAM":
+          const orderTeam = { "CAPITAL": 0, "CANNON": 1, "SUPPORT": 2, "NONE": 3 };
+          const ta = orderTeam[a.team || "NONE"];
+          const tb = orderTeam[b.team || "NONE"];
+          if (ta !== tb) return ta - tb;
+          return nameA.localeCompare(nameB);
+        case "STATUS":
+          const orderSt = { "参加": 0, "不明": 1, "不参加": 2 };
+          const sa = orderSt[a.status] ?? 99;
+          const sb = orderSt[b.status] ?? 99;
+          if (sa !== sb) return sa - sb;
+          return nameA.localeCompare(nameB);
+        case "ALLIANCE":
+        default:
+          if (allianceA.name !== allianceB.name) {
+            return allianceA.name.localeCompare(allianceB.name);
+          }
+          return nameA.localeCompare(nameB);
       }
-      statLvEl.textContent = lvParts.join(" / ");
-
-      const tParts = [];
-      for (let t = 10; t >= 1; t--) {
-        if (tierCounts[t] > 0) {
-          tParts.push(`T${t}:${tierCounts[t]}`);
-        }
-      }
-      statTierEl.textContent = tParts.join(" / ");
-    }
-
-    function focusOnBase(b) {
-      const anchor = b.anchor || b.cells[0];
-      const world = gridToWorld(anchor.x, anchor.y);
-      const rect = canvas.getBoundingClientRect();
-      offsetX = rect.width / 2 - world.x * scale;
-      offsetY = rect.height / 2 - world.y * scale;
-      selectedCell = { x: anchor.x, y: anchor.y };
-      draw();
     }
 
     function updateBaseListUI() {
       baseListEl.innerHTML = "";
-      const sorted = sortBasesArray(bases);
+      const filtered = bases.filter(passesFilter);
+      const sorted = [...filtered].sort(compareBase);
 
+      // 集計
+      const teamCount = { CAPITAL:0, CANNON:0, SUPPORT:0, NONE:0 };
+      const statusCount = { "参加":0, "不参加":0, "不明":0 };
+      const lvCount = Array(31).fill(0); // 0〜30
+      const tCount = Array(11).fill(0);  // 0〜10 (T1〜T10)
+
+      sorted.forEach(b => {
+        const t = b.team || "NONE";
+        if (teamCount[t] != null) teamCount[t]++;
+        if (statusCount[b.status] != null) statusCount[b.status]++;
+        if (b.level != null && b.level >= 1 && b.level <= 30) lvCount[b.level]++;
+        const tn = parseInt((b.tier || "T1").substring(1), 10);
+        if (!isNaN(tn) && tn >= 1 && tn <= 10) tCount[tn]++;
+      });
+
+      // リスト要素
       sorted.forEach(b => {
         const li = document.createElement("li");
         li.className = "base-item";
@@ -1126,7 +1203,17 @@
         const alliance = allianceMap[b.allianceKey] || ALLIANCES[0];
         const dot = document.createElement("div");
         dot.className = "base-color-dot";
-        dot.style.background = alliance.color;
+
+        // チーム別で少し色調整（合成）
+        let baseColor = alliance.color;
+        if (b.team === "CAPITAL") {
+          baseColor = "#ffdd55";
+        } else if (b.team === "CANNON") {
+          baseColor = "#ff8888";
+        } else if (b.team === "SUPPORT") {
+          baseColor = "#88ffdd";
+        }
+        dot.style.background = baseColor;
 
         const info = document.createElement("div");
         info.className = "base-item-info";
@@ -1155,7 +1242,12 @@
         const tagSpan = document.createElement("span");
         tagSpan.className = "base-tagline";
         const lv = b.level != null ? `Lv.${b.level}` : "Lv.-";
-        tagSpan.textContent = `${b.status} ${b.tier} ${lv}`;
+        let teamLabel = "";
+        if (b.team === "CAPITAL") teamLabel = "首都";
+        else if (b.team === "CANNON") teamLabel = "大砲";
+        else if (b.team === "SUPPORT") teamLabel = "援護";
+        else teamLabel = "";
+        tagSpan.textContent = `${b.status} ${b.tier} ${lv}${teamLabel ? " / " + teamLabel : ""}`;
 
         metaRow.appendChild(coordSpan);
         metaRow.appendChild(tagSpan);
@@ -1166,24 +1258,54 @@
         li.appendChild(dot);
         li.appendChild(info);
 
-        // クリックでその基地にフォーカス移動
+        // ダブルクリック / ダブルタップで編集
+        let lastClickTime = 0;
         li.addEventListener("click", (e) => {
-          e.stopPropagation();
+          const now = Date.now();
+          // シングルクリック → フォーカス移動
           focusOnBase(b);
-        });
-
-        // ダブルクリックで編集
-        li.addEventListener("dblclick", (e) => {
-          e.stopPropagation();
-          openBaseDialogForEdit(b);
+          // 250ms 以内にもう一度来たらダブルクリック扱い
+          if (now - lastClickTime < 250) {
+            openBaseDialogForEdit(b);
+          }
+          lastClickTime = now;
         });
 
         baseListEl.appendChild(li);
       });
 
-      updateStats();
+      // 集計表示
+      const lines = [];
+
+      lines.push(`基地数: ${filtered.length}`);
+      lines.push(
+        `チーム: 首都 ${teamCount.CAPITAL} / 大砲 ${teamCount.CANNON} / 援護 ${teamCount.SUPPORT} / なし ${teamCount.NONE}`
+      );
+      lines.push(
+        `状態: 参加 ${statusCount["参加"]} / 不参加 ${statusCount["不参加"]} / 不明 ${statusCount["不明"]}`
+      );
+
+      // Lv 合計（あるものだけ）
+      const lvParts = [];
+      for (let lv = 30; lv >= 1; lv--) {
+        if (lvCount[lv] > 0) lvParts.push(`Lv.${lv}:${lvCount[lv]}`);
+      }
+      if (lvParts.length > 0) {
+        lines.push("Lv内訳: " + lvParts.join(" / "));
+      }
+
+      const tParts = [];
+      for (let t = 10; t >= 1; t--) {
+        if (tCount[t] > 0) tParts.push(`T${t}:${tCount[t]}`);
+      }
+      if (tParts.length > 0) {
+        lines.push("T内訳: " + tParts.join(" / "));
+      }
+
+      summaryBox.textContent = lines.join("\n");
     }
 
+    // ===== 描画系 =====
     function drawHexCenter(wx, wy, strokeStyle, fillStyle, lineWidth = 1) {
       const { x: sx, y: sy } = worldToScreen(wx, wy);
       const s = HEX_SIZE * scale;
@@ -1216,9 +1338,8 @@
     }
 
     function drawGrid() {
-      const rect = canvas.getBoundingClientRect();
-      const w = rect.width;
-      const h = rect.height;
+      const w = canvasCssWidth;
+      const h = canvasCssHeight;
       const margin = 80 / scale;
       const topLeftWorld = screenToWorld(-margin, -margin);
       const bottomRightWorld = screenToWorld(w + margin, h + margin);
@@ -1260,7 +1381,10 @@
             if (gx === c.x && gy === c.y) { inExtraBlocked = true; break; }
           }
           const inBlocked = inBlockedPolygon || inExtraBlocked;
-          const baseAt = findBaseAtCell(gx, gy);
+
+          const baseAt = bases.find(b =>
+            b.cells.some(c => c.x === gx && c.y === gy) && passesFilter(b)
+          );
 
           let stroke, fill, lw;
           if (isSelectedCell) {
@@ -1273,11 +1397,15 @@
             lw = 1.2;
           } else if (baseAt) {
             const alliance = allianceMap[baseAt.allianceKey] || ALLIANCES[0];
+            let baseColor = alliance.color;
+            if (baseAt.team === "CAPITAL") baseColor = "#ffdd55";
+            else if (baseAt.team === "CANNON") baseColor = "#ff8888";
+            else if (baseAt.team === "SUPPORT") baseColor = "#88ffdd";
             let alphaFill = 0.25;
             if (baseAt.status === "参加") alphaFill = 0.34;
             else if (baseAt.status === "不参加") alphaFill = 0.22;
-            stroke = hexToRgba(alliance.color, 0.95);
-            fill   = hexToRgba(alliance.color, alphaFill);
+            stroke = hexToRgba(baseColor, 0.95);
+            fill   = hexToRgba(baseColor, alphaFill);
             lw = 1.5;
           } else {
             stroke = inDesert
@@ -1378,140 +1506,159 @@
     }
 
     function drawBaseLabels() {
-      if (!showBasePopups && !showMemoPopups) return;
-
+      if (!showBasePopups) return;
       ctx.save();
-      bases.forEach(b => {
+
+      bases.filter(passesFilter).forEach(b => {
         const anchor = b.anchor || b.cells[0];
         const world = gridToWorld(anchor.x, anchor.y);
         const screen = worldToScreen(world.x, world.y);
 
         const alliance = allianceMap[b.allianceKey] || ALLIANCES[0];
-        const nameText   = b.name;
+        const nameText = b.name;
         const statusText = b.status || "不明";
-        const levelText  = b.level != null ? `Lv.${b.level}` : "Lv.-";
-        const tierText   = b.tier || "T1";
+        const levelText = b.level != null ? `Lv.${b.level}` : "Lv.-";
+        const tierText = b.tier || "T1";
         const statusLine = `${statusText} ${tierText} ${levelText}`;
-        const coordText  = `X${anchor.x} Y${anchor.y}`;
-        const memoText   = b.memo ? String(b.memo).slice(0, 60) : "";
+        const coordText = `X${anchor.x} Y${anchor.y}`;
 
         const baseFontSize = Math.max(6, Math.min(12, 10 * scale * 2.0));
-        const lineHeight   = baseFontSize * 1.05;
+        const lineHeight = baseFontSize * 1.05;
 
         ctx.font = `${baseFontSize}px system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif`;
 
-        const nameWidth   = ctx.measureText(nameText).width;
+        const nameWidth = ctx.measureText(nameText).width;
         const statusWidth = ctx.measureText(statusLine).width;
-        const coordWidth  = ctx.measureText(coordText).width;
-        const textWidth   = Math.max(nameWidth, statusWidth, coordWidth);
+        const coordWidth = ctx.measureText(coordText).width;
+        const textWidth = Math.max(nameWidth, statusWidth, coordWidth);
 
-        const iconSize   = lineHeight * 1.8;
-        const paddingX   = 4 * scale * 1.5;
-        const paddingY   = 3 * scale * 1.5;
-        const baseLines  = 3;
+        const iconSize = lineHeight * 1.8;
+        const paddingX = 4 * scale * 1.5;
+        const paddingY = 3 * scale * 1.5;
+
         const panelWidth = Math.max(textWidth, iconSize) + paddingX * 2;
-        const panelHeight = paddingY * 2 + iconSize + 4 + lineHeight * baseLines;
+        const panelHeight = paddingY * 2 + iconSize + 4 + lineHeight * 3;
         const offsetAboveHex = HEX_SIZE * scale * 1.6;
 
-        let basePanelTopY = screen.y - offsetAboveHex - panelHeight;
+        const panelX = screen.x - panelWidth / 2;
+        const panelY = screen.y - offsetAboveHex - panelHeight;
 
-        // 基地ポップ
-        if (showBasePopups) {
-          const panelX = screen.x - panelWidth / 2;
-          const panelY = basePanelTopY;
+        ctx.globalAlpha = 0.9;
+        ctx.fillStyle = "rgba(0,0,0,0.75)";
+        drawRoundedRect(ctx, panelX, panelY, panelWidth, panelHeight, 6);
+        ctx.fill();
+        ctx.globalAlpha = 1.0;
+        ctx.strokeStyle = "rgba(255,255,255,0.12)";
+        ctx.lineWidth = 1;
+        drawRoundedRect(ctx, panelX, panelY, panelWidth, panelHeight, 6);
+        ctx.stroke();
 
-          ctx.globalAlpha = 0.9;
-          ctx.fillStyle = "rgba(0,0,0,0.75)";
-          drawRoundedRect(ctx, panelX, panelY, panelWidth, panelHeight, 6);
-          ctx.fill();
-          ctx.globalAlpha = 1.0;
-          ctx.strokeStyle = "rgba(255,255,255,0.12)";
-          ctx.lineWidth = 1;
-          drawRoundedRect(ctx, panelX, panelY, panelWidth, panelHeight, 6);
-          ctx.stroke();
+        ctx.textAlign = "center";
+        ctx.textBaseline = "top";
 
-          ctx.textAlign = "center";
-          ctx.textBaseline = "top";
+        let cursorY = panelY + paddingY;
 
-          let cursorY = panelY + paddingY;
+        const iconX = screen.x - iconSize / 2;
+        const iconY = cursorY;
+        let baseColor = alliance.color;
+        if (b.team === "CAPITAL") baseColor = "#ffdd55";
+        else if (b.team === "CANNON") baseColor = "#ff8888";
+        else if (b.team === "SUPPORT") baseColor = "#88ffdd";
 
-          const iconX = screen.x - iconSize / 2;
-          const iconY = cursorY;
-          ctx.fillStyle = alliance.color;
-          drawRoundedRect(ctx, iconX, iconY, iconSize, iconSize, 4);
-          ctx.fill();
+        ctx.fillStyle = baseColor;
+        drawRoundedRect(ctx, iconX, iconY, iconSize, iconSize, 4);
+        ctx.fill();
 
-          ctx.fillStyle = alliance.textColor || "#000";
-          ctx.textAlign = "center";
-          ctx.textBaseline = "middle";
-          ctx.font = `${baseFontSize}px system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif`;
-          ctx.fillText(alliance.name, screen.x, iconY + iconSize / 2);
+        ctx.fillStyle = alliance.textColor || "#000";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.font = `${baseFontSize}px system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif`;
+        ctx.fillText(alliance.name, screen.x, iconY + iconSize / 2);
 
-          cursorY += iconSize + 4;
+        cursorY += iconSize + 4;
 
-          ctx.textAlign = "center";
-          ctx.textBaseline = "top";
-          ctx.font = `${baseFontSize}px system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "top";
+        ctx.font = `${baseFontSize}px system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif`;
 
-          ctx.fillStyle = "rgba(255,255,255,0.96)";
-          ctx.fillText(nameText, screen.x, cursorY);
-          cursorY += lineHeight;
+        ctx.fillStyle = "rgba(255,255,255,0.96)";
+        ctx.fillText(nameText, screen.x, cursorY);
+        cursorY += lineHeight;
 
-          ctx.fillStyle =
-            statusText === "参加" ? "rgba(150,255,190,0.96)"
-            : statusText === "不参加" ? "rgba(255,170,170,0.96)"
-            : "rgba(255,230,170,0.96)";
-          ctx.fillText(statusLine, screen.x, cursorY);
-          cursorY += lineHeight;
+        ctx.fillStyle =
+          statusText === "参加" ? "rgba(150,255,190,0.96)"
+          : statusText === "不参加" ? "rgba(255,170,170,0.96)"
+          : "rgba(255,230,170,0.96)";
+        ctx.fillText(statusLine, screen.x, cursorY);
+        cursorY += lineHeight;
 
-          ctx.fillStyle = "rgba(210,230,255,0.96)";
-          ctx.fillText(coordText, screen.x, cursorY);
-        } else {
-          basePanelTopY = screen.y - HEX_SIZE * scale * 1.2;
-        }
+        ctx.fillStyle = "rgba(210,230,255,0.96)";
+        ctx.fillText(coordText, screen.x, cursorY);
+      });
 
-        // メモポップ（別パネル、文字大きめ）
-        if (showMemoPopups && memoText) {
-          const memoFontSize = baseFontSize * 1.6;
-          ctx.font = `${memoFontSize}px system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif`;
-          const memoWidth    = ctx.measureText(memoText).width;
-          const memoPaddingX = paddingX * 1.4;
-          const memoPaddingY = paddingY * 1.2;
-          const memoPanelWidth  = memoWidth + memoPaddingX * 2;
-          const memoPanelHeight = memoFontSize + memoPaddingY * 2;
+      ctx.restore();
+    }
 
-          const memoX = screen.x - memoPanelWidth / 2;
-          const memoY = basePanelTopY - memoPanelHeight - 6;
+    function drawMemoLabels() {
+      if (!showMemoPopups) return;
+      ctx.save();
 
-          ctx.globalAlpha = 0.95;
-          ctx.fillStyle = "rgba(0,0,40,0.9)";
-          drawRoundedRect(ctx, memoX, memoY, memoPanelWidth, memoPanelHeight, 8);
-          ctx.fill();
-          ctx.globalAlpha = 1.0;
-          ctx.strokeStyle = "rgba(160,190,255,0.8)";
-          ctx.lineWidth = 1;
-          drawRoundedRect(ctx, memoX, memoY, memoPanelWidth, memoPanelHeight, 8);
-          ctx.stroke();
+      const memoBases = bases.filter(b => b.memo && b.memo.trim() && passesFilter(b));
+      memoBases.forEach(b => {
+        const anchor = b.anchor || b.cells[0];
+        const world = gridToWorld(anchor.x, anchor.y);
+        const screen = worldToScreen(world.x, world.y);
 
-          ctx.fillStyle = "rgba(210,230,255,0.98)";
-          ctx.textAlign = "center";
-          ctx.textBaseline = "middle";
-          ctx.font = `${memoFontSize}px system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif`;
-          ctx.fillText(memoText, screen.x, memoY + memoPanelHeight / 2);
-        }
+        const text = b.memo.trim();
+        const fontSize = Math.max(10, Math.min(18, 14 * scale * 2.0));
+        const lineHeight = fontSize * 1.2;
+
+        ctx.font = `${fontSize}px system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif`;
+
+        const lines = text.split(/\r?\n/);
+        const widths = lines.map(line => ctx.measureText(line).width);
+        const textWidth = Math.max(...widths, 40);
+        const paddingX = 6;
+        const paddingY = 4;
+        const panelWidth = textWidth + paddingX * 2;
+        const panelHeight = lineHeight * lines.length + paddingY * 2;
+
+        const offsetBelowHex = HEX_SIZE * scale * 1.8;
+        const panelX = screen.x - panelWidth / 2;
+        const panelY = screen.y + offsetBelowHex;
+
+        ctx.globalAlpha = 0.95;
+        ctx.fillStyle = "rgba(0,0,0,0.85)";
+        drawRoundedRect(ctx, panelX, panelY, panelWidth, panelHeight, 8);
+        ctx.fill();
+        ctx.globalAlpha = 1.0;
+        ctx.strokeStyle = "rgba(255,255,255,0.35)";
+        ctx.lineWidth = 1.2;
+        drawRoundedRect(ctx, panelX, panelY, panelWidth, panelHeight, 8);
+        ctx.stroke();
+
+        ctx.fillStyle = "rgba(255,255,255,0.96)";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "top";
+
+        let y = panelY + paddingY;
+        lines.forEach(line => {
+          ctx.fillText(line, screen.x, y);
+          y += lineHeight;
+        });
       });
 
       ctx.restore();
     }
 
     function draw() {
-      const rect = canvas.getBoundingClientRect();
-      ctx.clearRect(0, 0, rect.width, rect.height);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
       drawGrid();
       drawDesertOutline();
       drawBlockedOutline();
       drawRegionLabels();
       drawBaseLabels();
+      drawMemoLabels();
 
       zoomDisplay.textContent = Math.round(scale * 100) + "%";
       cellDisplay.textContent = selectedCell
@@ -1519,10 +1666,33 @@
         : "—";
     }
 
+    // ===== 操作 =====
     function handleCellDoubleAction(cell) {
       const base = findBaseAtCell(cell.x, cell.y);
       if (base) openBaseDialogForEdit(base);
       else openBaseDialogForCreate(cell);
+    }
+
+    function zoomAt(mx, my, zoomDelta) {
+      let newScale = scale + zoomDelta * scale;
+      newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, newScale));
+      if (newScale === scale) return;
+      const worldBefore = screenToWorld(mx, my);
+      scale = newScale;
+      const worldAfter = screenToWorld(mx, my);
+      offsetX += (worldAfter.x - worldBefore.x) * scale;
+      offsetY += (worldAfter.y - worldBefore.y) * scale;
+      draw();
+    }
+
+    function focusOnBase(b) {
+      const world = gridToWorld(b.anchor.x, b.anchor.y);
+      const midX = canvasCssWidth / 2;
+      const midY = canvasCssHeight / 2;
+      offsetX = midX - world.x * scale;
+      offsetY = midY - world.y * scale;
+      selectedCell = { x: b.anchor.x, y: b.anchor.y };
+      draw();
     }
 
     canvas.addEventListener("mousedown", (e) => {
@@ -1602,9 +1772,9 @@
       handleCellDoubleAction(cell);
     });
 
-    // タッチ：二回タップでダイアログ、ドラッグで移動／ドラッグ基地
+    // スマホ用タッチ（ダブルタップ判定＋ドラッグ）
     canvas.addEventListener("touchstart", (e) => {
-      e.preventDefault(); // ブラウザのダブルタップ拡大をできるだけ抑制
+      e.preventDefault();
       if (e.touches.length !== 1) return;
       const t = e.touches[0];
       const rect = canvas.getBoundingClientRect();
@@ -1631,6 +1801,7 @@
     }, { passive: false });
 
     canvas.addEventListener("touchmove", (e) => {
+      e.preventDefault();
       if (e.touches.length !== 1) return;
       const t = e.touches[0];
       const rect = canvas.getBoundingClientRect();
@@ -1654,9 +1825,10 @@
       offsetX += dx;
       offsetY += dy;
       draw();
-    }, { passive: true });
+    }, { passive: false });
 
     window.addEventListener("touchend", (e) => {
+      e.preventDefault();
       const now = Date.now();
       const rect = canvas.getBoundingClientRect();
 
@@ -1688,20 +1860,9 @@
       draggingBaseId = null;
       lastDragCell = null;
       canvas.classList.remove("dragging");
-    });
+    }, { passive: false });
 
-    function zoomAt(mx, my, zoomDelta) {
-      let newScale = scale + zoomDelta * scale;
-      newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, newScale));
-      if (newScale === scale) return;
-      const worldBefore = screenToWorld(mx, my);
-      scale = newScale;
-      const worldAfter = screenToWorld(mx, my);
-      offsetX += (worldAfter.x - worldBefore.x) * scale;
-      offsetY += (worldAfter.y - worldBefore.y) * scale;
-      draw();
-    }
-
+    // ===== ボタン・UIイベント =====
     zoomInBtn.addEventListener("click", () => {
       const rect = canvas.getBoundingClientRect();
       zoomAt(rect.width / 2, rect.height / 2, 0.2);
@@ -1716,16 +1877,45 @@
       toggleSidebarBtn.textContent = sidebarEl.classList.contains("collapsed") ? "＋" : "－";
     });
 
-    // Pop：基地ポップ ON/OFF
-    togglePopupsLabelBtn.addEventListener("click", () => {
-      showBasePopups = !showBasePopups;
+    exportBtn.addEventListener("click", exportBasesToFile);
+    importBtn.addEventListener("click", () => importFileInput.click());
+    importFileInput.addEventListener("change", handleImportFile);
+
+    filterKindSelect.addEventListener("change", () => {
+      filterKind = filterKindSelect.value;
+      updateBaseListUI();
+      draw();
+    });
+    sortKeySelect.addEventListener("change", () => {
+      sortKey = sortKeySelect.value;
+      updateBaseListUI();
       draw();
     });
 
-    // Memo：メモポップ ON/OFF
-    toggleMemoPopBtn.addEventListener("click", () => {
-      showMemoPopups = !showMemoPopups;
+    popBtn.addEventListener("click", () => {
+      showBasePopups = !showBasePopups;
+      popBtn.classList.toggle("toggle-on", showBasePopups);
       draw();
+    });
+    popBtn.classList.add("toggle-on");
+
+    memoPopBtn.addEventListener("click", () => {
+      showMemoPopups = !showMemoPopups;
+      memoPopBtn.classList.toggle("toggle-on", showMemoPopups);
+      draw();
+    });
+
+    clearBtn.addEventListener("click", () => {
+      if (!bases.length) {
+        alert("削除する基地がありません。");
+        return;
+      }
+      if (confirm("全ての基地を一括削除しますか？")) {
+        bases.length = 0;
+        saveBases();
+        updateBaseListUI();
+        draw();
+      }
     });
 
     copyBtn.addEventListener("click", async () => {
@@ -1733,29 +1923,25 @@
         alert("コピーする基地がありません。");
         return;
       }
-      const sorted = sortBasesArray(bases);
+      const filtered = bases.filter(passesFilter).sort(compareBase);
+      const allianceNames = filtered.map(b => (allianceMap[b.allianceKey] || ALLIANCES[0]).name);
+      const baseNames = filtered.map(b => b.name);
+      const coords = filtered.map(b => `X${b.anchor.x} Y${b.anchor.y}`);
 
-      const rows = sorted.map(b => {
-        const alliance = allianceMap[b.allianceKey] || ALLIANCES[0];
-        const allianceName = alliance.name;
-        const baseName = b.name;
-        const coord = `X${b.anchor.x} Y${b.anchor.y}`;
-        return { allianceName, baseName, coord };
-      });
+      const maxAlliance = Math.max(...allianceNames.map(s => s.length));
+      const maxBase = Math.max(...baseNames.map(s => s.length));
 
-      const maxAllianceLen = Math.max(...rows.map(r => r.allianceName.length));
-      const maxBaseLen     = Math.max(...rows.map(r => r.baseName.length));
-
-      const lines = rows.map(r => {
-        const padAlliance = r.allianceName.padEnd(maxAllianceLen, " ");
-        const padBase     = r.baseName.padEnd(maxBaseLen, " ");
-        return `${padAlliance}  ${padBase}  ${r.coord}`;
+      const lines = filtered.map((b, idx) => {
+        const aName = allianceNames[idx].padEnd(maxAlliance, " ");
+        const bName = baseNames[idx].padEnd(maxBase, " ");
+        const coord = coords[idx];
+        return `${aName}  ${bName}  ${coord}`;
       });
 
       const text = lines.join("\n");
       try {
         await navigator.clipboard.writeText(text);
-        alert("同盟・基地名・座標をコピーしました。");
+        alert("同盟名・基地名・座標をコピーしました。");
       } catch (e) {
         console.warn(e);
         alert("クリップボードへのコピーに失敗しました。");
