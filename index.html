@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 
-  <!-- スマホのダブルタップ拡大を禁止 -->
+  <!-- スマホのページ拡大を極力禁止 -->
   <meta
     name="viewport"
     content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
@@ -26,6 +26,7 @@
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       color: #f5f5f5;
       font-size: 15px;
+      touch-action: none; /* ページ自体のダブルタップ拡大抑制 */
     }
     #map-canvas {
       width: 100%;
@@ -78,6 +79,12 @@
       max-height: none;
       padding: 8px 12px;
     }
+    /* スマホで情報だけ隠す用 */
+    .sidebar.info-hidden .sidebar-note,
+    .sidebar.info-hidden #sidebar-totals {
+      display: none;
+    }
+
     .sidebar-header {
       display: flex;
       align-items: center;
@@ -99,6 +106,8 @@
       color: #f5f5f5;
       cursor: pointer;
       font-size: 12px;
+      pointer-events: auto;
+      z-index: 1;
     }
 
     .sidebar-actions {
@@ -176,6 +185,7 @@
       border: 1px solid transparent;
       align-items: center;
       cursor: pointer;
+      transition: opacity 0.15s;
     }
     #base-list li.base-item:hover {
       background: rgba(255,255,255,0.08);
@@ -184,13 +194,17 @@
       border-color: rgba(255,221,85,0.8);
       box-shadow: 0 0 0 1px rgba(255,221,85,0.4);
     }
+    /* フィルターで薄表示 */
+    #base-list li.base-item.dimmed {
+      opacity: 0.3;
+    }
 
     .base-color-dot {
       width: 20px;
       height: 20px;
       border-radius: 50%;
       flex-shrink: 0;
-      border: 1px solid rgba(0,0,0,0.5);
+      border: 1px solid rgba(0,0,0,0.7);
     }
     .base-item-info {
       flex: 1;
@@ -250,6 +264,7 @@
       color: #fff;
       font-size: 22px;
       cursor: pointer;
+      touch-action: manipulation; /* 二度押し拡大を抑える */
     }
 
     /* ダイアログ用共通 */
@@ -274,14 +289,12 @@
     }
 
     @media (max-width: 768px) {
-      /* HUDを右上へ */
       .hud {
         right: 8px;
         top: 8px;
         bottom: auto;
         font-size: 12px;
       }
-      /* ズームボタンはHUDの下に */
       .zoom-buttons {
         right: 8px;
         top: 60px;
@@ -516,7 +529,7 @@
     const HEX_VERT_SPACING = 1.5 * HEX_SIZE;
     const HEX_HORIZ_SPACING = Math.sqrt(3) * HEX_SIZE;
     const EDGE_THICKNESS_WORLD = HEX_SIZE * 0.8;
-    const STORAGE_KEY = "hexmap_bases_v9";
+    const STORAGE_KEY = "hexmap_bases_v10";
 
     let scale = 0.35;
     let offsetX = 0;
@@ -554,13 +567,22 @@
     const ENEMY_MEMBERS = Array.from({ length: 1000 }, (_, i) => "敵" + String(i + 1).padStart(3, "0"));
     const ALLY_MEMBERS = Array.from({ length: 1000 }, (_, i) => "味方" + String(i + 1).padStart(3, "0"));
 
-    // チーム色
-    const TEAM_COLORS = {
-      "首都": "#ffcc33",
-      "砲台": "#ff7777",
-      "援護": "#66ccff",
-      "": "#ffffff"
-    };
+    // 味方/敵 基本色＋チーム色
+    function getBaseColor(b) {
+      const side = b.side || "ALLY";
+      const team = b.team || "";
+      if (side === "ALLY") {
+        if (team === "首都") return "#99ffcc";
+        if (team === "砲台") return "#55dd88";
+        if (team === "援護") return "#44bb77";
+        return "#66ff99"; // デフォルト味方
+      } else {
+        if (team === "首都") return "#ff9999";
+        if (team === "砲台") return "#ff4444";
+        if (team === "援護") return "#dd5555";
+        return "#ff6666"; // デフォルト敵
+      }
+    }
 
     const ALLIANCES = [
       {
@@ -923,9 +945,20 @@
     });
     importFileInput.addEventListener("change", handleImportFile);
 
-    // フィルター
+    // フィルター状態
     let filterSide = "ALL";
     let filterTeam = "ALL";
+
+    function isBaseMatchFilter(b) {
+      if (filterSide !== "ALL" && b.side !== filterSide) return false;
+      if (filterTeam !== "ALL" && b.team !== filterTeam) return false;
+      return true;
+    }
+
+    function getFilteredBases() {
+      return bases.filter(isBaseMatchFilter);
+    }
+
     filterSideSel.addEventListener("change", function() {
       filterSide = filterSideSel.value;
       updateBaseListUI();
@@ -983,9 +1016,16 @@
     }
 
     function updateAllianceOptionsBySide(side) {
+      const list = ALLIANCES.filter(a => a.side === side);
+      list.sort((a, b) => {
+        const aGen = (a.key === side);
+        const bGen = (b.key === side);
+        if (aGen && !bGen) return -1;
+        if (!aGen && bGen) return 1;
+        return a.name.localeCompare(b.name, "ja");
+      });
       dlgAlliance.innerHTML = "";
-      ALLIANCES.forEach(function(a) {
-        if (a.side !== side) return;
+      list.forEach(a => {
         const opt = document.createElement("option");
         opt.value = a.key;
         opt.textContent = a.name;
@@ -1022,8 +1062,21 @@
     dlgSide.addEventListener("change", function() {
       const side = dlgSide.value;
       updateAllianceOptionsBySide(side);
-      const firstAlliance = dlgAlliance.value;
-      updateNameOptionsForAlliance(firstAlliance, dialogEditingBase ? dialogEditingBase.name : null);
+      // デフォルトは味方→ALLY, 敵→ENEMY
+      let defKey = side;
+      let found = false;
+      for (let i = 0; i < dlgAlliance.options.length; i++) {
+        if (dlgAlliance.options[i].value === defKey) {
+          dlgAlliance.value = defKey;
+          found = true;
+          break;
+        }
+      }
+      if (!found && dlgAlliance.options.length) {
+        dlgAlliance.value = dlgAlliance.options[0].value;
+      }
+      const currentName = dialogEditingBase ? dialogEditingBase.name : null;
+      updateNameOptionsForAlliance(dlgAlliance.value, currentName);
     });
 
     dlgAlliance.addEventListener("change", function() {
@@ -1040,12 +1093,18 @@
 
       dlgSide.value = "ALLY";
       updateAllianceOptionsBySide("ALLY");
-      dlgAlliance.value = "B777";
-      updateNameOptionsForAlliance("B777", null);
-      dlgTeam.value = "援護";
-      dlgStatus.value = "参加";
-      dlgLevel.value = "27";
-      dlgTier.value = "T9";
+      // 所属同盟デフォルトは「味方」
+      if ([...dlgAlliance.options].some(o => o.value === "ALLY")) {
+        dlgAlliance.value = "ALLY";
+      } else if (dlgAlliance.options.length) {
+        dlgAlliance.value = dlgAlliance.options[0].value;
+      }
+      updateNameOptionsForAlliance(dlgAlliance.value, null);
+
+      dlgTeam.value = "";          // デフォルト「なし」
+      dlgStatus.value = "参加";    // デフォルト参加
+      dlgLevel.value = "27";       // デフォルトLv.27
+      dlgTier.value = "T9";        // デフォルトT9
       dlgMemo.value = "";
 
       dlgCoordText.textContent = "配置セル: X" + cell.x + " Y" + cell.y;
@@ -1154,14 +1213,6 @@
       closeBaseDialog();
     });
 
-    function getFilteredBases() {
-      return bases.filter(function(b) {
-        if (filterSide !== "ALL" && b.side !== filterSide) return false;
-        if (filterTeam !== "ALL" && b.team !== filterTeam) return false;
-        return true;
-      });
-    }
-
     function focusOnBase(b) {
       const rect = canvas.getBoundingClientRect();
       const world = gridToWorld(b.anchor.x, b.anchor.y);
@@ -1172,10 +1223,9 @@
 
     function updateBaseListUI() {
       baseListEl.innerHTML = "";
-      const list = getFilteredBases();
       const sortKey = sortKeySel.value;
 
-      const sorted = list.slice().sort(function(a, b) {
+      const sorted = bases.slice().sort(function(a, b) {
         if (sortKey === "alliance") {
           const aa = (allianceMap[a.allianceKey] && allianceMap[a.allianceKey].name) || a.allianceKey;
           const bb = (allianceMap[b.allianceKey] && allianceMap[b.allianceKey].name) || b.allianceKey;
@@ -1204,14 +1254,16 @@
         if (b.id === selectedBaseId) {
           li.classList.add("selected");
         }
+        if (!isBaseMatchFilter(b)) {
+          li.classList.add("dimmed");
+        }
 
         const alliance = allianceMap[b.allianceKey] || ALLIANCES[0];
-        const teamColor = TEAM_COLORS[b.team || ""] || alliance.color;
+        const baseColor = getBaseColor(b);
 
         const dot = document.createElement("div");
         dot.className = "base-color-dot";
-        dot.style.background = teamColor;
-        dot.style.borderColor = alliance.color;
+        dot.style.background = baseColor;
 
         const info = document.createElement("div");
         info.className = "base-item-info";
@@ -1307,17 +1359,17 @@
 
       const lvParts = [];
       Object.keys(lvCounts)
-        .map(function(x) { return parseInt(x, 10); })
-        .sort(function(a, b) { return b - a; })
-        .forEach(function(lv) {
+        .map(x => parseInt(x, 10))
+        .sort((a, b) => b - a)
+        .forEach(lv => {
           lvParts.push("Lv." + lv + " " + lvCounts[lv]);
         });
 
       const tParts = [];
       Object.keys(tCounts)
-        .map(function(x) { return parseInt(x, 10); })
-        .sort(function(a, b) { return b - a; })
-        .forEach(function(tn) {
+        .map(x => parseInt(x, 10))
+        .sort((a, b) => b - a)
+        .forEach(tn => {
           tParts.push("T" + tn + " " + tCounts[tn]);
         });
 
@@ -1347,7 +1399,7 @@
     function hexToRgba(hex, alpha) {
       let c = hex.replace("#", "");
       if (c.length === 3) {
-        c = c.split("").map(function(ch) { return ch + ch; }).join("");
+        c = c.split("").map(ch => ch + ch).join("");
       }
       const r = parseInt(c.slice(0, 2), 16);
       const g = parseInt(c.slice(2, 4), 16);
@@ -1388,7 +1440,7 @@
       }
     }
 
-    function drawGrid(filteredBases) {
+    function drawGrid() {
       const rect = canvas.getBoundingClientRect();
       const w = rect.width;
       const h = rect.height;
@@ -1431,18 +1483,8 @@
           }
           const inBlocked = inBlockedPolygon || inExtraBlocked;
 
-          let baseAt = null;
-          for (let bi = 0; bi < filteredBases.length; bi++) {
-            const b = filteredBases[bi];
-            for (let cj = 0; cj < b.cells.length; cj++) {
-              const c = b.cells[cj];
-              if (c.x === gx && c.y === gy) {
-                baseAt = b;
-                break;
-              }
-            }
-            if (baseAt) break;
-          }
+          const baseAt = findBaseAtCell(gx, gy);
+          const match = baseAt ? isBaseMatchFilter(baseAt) : false;
 
           let stroke, fill, lw;
           if (isSelected) {
@@ -1454,14 +1496,19 @@
             fill   = "rgba(255,80,80,0.22)";
             lw = 1.2;
           } else if (baseAt) {
-            const alliance = allianceMap[baseAt.allianceKey] || ALLIANCES[0];
-            const teamColor = TEAM_COLORS[baseAt.team || ""] || alliance.color;
+            const baseColor = getBaseColor(baseAt);
             let alphaFill = 0.25;
             if (baseAt.status === "参加") alphaFill = 0.34;
             else if (baseAt.status === "不参加") alphaFill = 0.22;
-            stroke = hexToRgba(alliance.color, 0.95);
-            fill   = hexToRgba(teamColor, alphaFill);
-            lw = 1.5;
+
+            if (match) {
+              stroke = hexToRgba(baseColor, 0.95);
+              fill   = hexToRgba(baseColor, alphaFill);
+            } else {
+              stroke = hexToRgba(baseColor, 0.3);
+              fill   = hexToRgba(baseColor, alphaFill * 0.15);
+            }
+            lw = match ? 1.5 : 1.0;
           } else {
             stroke = inDesert
               ? "rgba(235,220,150,0.12)"
@@ -1546,14 +1593,15 @@
       ctx.restore();
     }
 
-    function drawBaseLabels(filteredBases) {
+    function drawBaseLabels() {
       if (!showBasePopups) return;
       ctx.save();
 
-      filteredBases.forEach(function(b) {
+      bases.forEach(function(b) {
         const anchor = b.anchor || b.cells[0];
         const world = gridToWorld(anchor.x, anchor.y);
         const screen = worldToScreen(world.x, world.y);
+        const match = isBaseMatchFilter(b);
 
         const alliance = allianceMap[b.allianceKey] || ALLIANCES[0];
         const nameText = b.name;
@@ -1584,15 +1632,17 @@
         const panelX = screen.x - panelWidth / 2;
         const panelY = screen.y - offsetAboveHex - panelHeight;
 
-        ctx.globalAlpha = 0.9;
+        ctx.globalAlpha = match ? 0.9 : 0.3;
         ctx.fillStyle = "rgba(0,0,0,0.75)";
         drawRoundedRect(ctx, panelX, panelY, panelWidth, panelHeight, 6);
         ctx.fill();
-        ctx.globalAlpha = 1.0;
+        ctx.globalAlpha = match ? 1.0 : 0.5;
         ctx.strokeStyle = "rgba(255,255,255,0.12)";
         ctx.lineWidth = 1;
         drawRoundedRect(ctx, panelX, panelY, panelWidth, panelHeight, 6);
         ctx.stroke();
+
+        const baseColor = getBaseColor(b);
 
         ctx.textAlign = "center";
         ctx.textBaseline = "top";
@@ -1601,11 +1651,12 @@
 
         const iconX = screen.x - iconSize / 2;
         const iconY = cursorY;
-        ctx.fillStyle = alliance.color;
+        ctx.fillStyle = baseColor;
         drawRoundedRect(ctx, iconX, iconY, iconSize, iconSize, 4);
         ctx.fill();
 
-        ctx.fillStyle = alliance.textColor || "#000";
+        ctx.fillStyle = "#001010";
+        if (b.side === "ENEMY") ctx.fillStyle = "#330000";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         ctx.font = baseFontSize + "px system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif";
@@ -1635,15 +1686,16 @@
       ctx.restore();
     }
 
-    function drawMemoLabels(filteredBases) {
+    function drawMemoLabels() {
       if (!showMemoPopups) return;
       ctx.save();
 
-      filteredBases.forEach(function(b) {
+      bases.forEach(function(b) {
         if (!b.memo) return;
         const anchor = b.anchor || b.cells[0];
         const world = gridToWorld(anchor.x, anchor.y);
         const screen = worldToScreen(world.x, world.y);
+        const match = isBaseMatchFilter(b);
 
         const memoText = b.memo;
         const fontSize = Math.max(10, Math.min(18, 14 * scale * 2.0));
@@ -1660,11 +1712,11 @@
         const panelX = screen.x - panelWidth / 2;
         const panelY = screen.y + offsetBelow;
 
-        ctx.globalAlpha = 0.95;
+        ctx.globalAlpha = match ? 0.95 : 0.4;
         ctx.fillStyle = "rgba(20,20,20,0.9)";
         drawRoundedRect(ctx, panelX, panelY, panelWidth, panelHeight, 6);
         ctx.fill();
-        ctx.globalAlpha = 1.0;
+        ctx.globalAlpha = match ? 1.0 : 0.5;
         ctx.strokeStyle = "rgba(255,255,255,0.25)";
         ctx.lineWidth = 1;
         drawRoundedRect(ctx, panelX, panelY, panelWidth, panelHeight, 6);
@@ -1683,14 +1735,12 @@
       const rect = canvas.getBoundingClientRect();
       ctx.clearRect(0, 0, rect.width, rect.height);
 
-      const filteredBases = getFilteredBases();
-
-      drawGrid(filteredBases);
+      drawGrid();
       drawDesertOutline();
       drawBlockedOutline();
       drawRegionLabels();
-      drawBaseLabels(filteredBases);
-      drawMemoLabels(filteredBases);
+      drawBaseLabels();
+      drawMemoLabels();
 
       zoomDisplay.textContent = Math.round(scale * 100) + "%";
       cellDisplay.textContent = selectedCell
@@ -1798,6 +1848,28 @@
       handleCellDoubleAction(cell);
     });
 
+    // スマホ：ズームボタンでのダブルタップ拡大を抑制（touchstartで処理）
+    zoomInBtn.addEventListener("touchstart", function(e) {
+      e.preventDefault();
+      const rect = canvas.getBoundingClientRect();
+      zoomAt(rect.width / 2, rect.height / 2, 0.2);
+    }, { passive: false });
+    zoomOutBtn.addEventListener("touchstart", function(e) {
+      e.preventDefault();
+      const rect = canvas.getBoundingClientRect();
+      zoomAt(rect.width / 2, rect.height / 2, -0.2);
+    }, { passive: false });
+
+    // PCは普通にclick
+    zoomInBtn.addEventListener("click", function(e) {
+      const rect = canvas.getBoundingClientRect();
+      zoomAt(rect.width / 2, rect.height / 2, 0.2);
+    });
+    zoomOutBtn.addEventListener("click", function(e) {
+      const rect = canvas.getBoundingClientRect();
+      zoomAt(rect.width / 2, rect.height / 2, -0.2);
+    });
+
     canvas.addEventListener("touchstart", function(e) {
       if (e.touches.length !== 1) return;
       const t = e.touches[0];
@@ -1868,7 +1940,7 @@
             lastTapCell.x === cell.x &&
             lastTapCell.y === cell.y
           ) {
-            // ダブルタップ → 基地追加/編集
+            // ダブルタップ → 基地追加/編集（ページ拡大にはさせない）
             handleCellDoubleAction(cell);
             lastTapTime = 0;
             lastTapCell = null;
@@ -1885,18 +1957,17 @@
       canvas.classList.remove("dragging");
     });
 
-    zoomInBtn.addEventListener("click", function() {
-      const rect = canvas.getBoundingClientRect();
-      zoomAt(rect.width / 2, rect.height / 2, 0.2);
-    });
-    zoomOutBtn.addEventListener("click", function() {
-      const rect = canvas.getBoundingClientRect();
-      zoomAt(rect.width / 2, rect.height / 2, -0.2);
-    });
-
-    toggleSidebarBtn.addEventListener("click", function() {
-      sidebarEl.classList.toggle("collapsed");
-      toggleSidebarBtn.textContent = sidebarEl.classList.contains("collapsed") ? "＋" : "－";
+    toggleSidebarBtn.addEventListener("click", function(e) {
+      e.stopPropagation();
+      if (window.innerWidth > 768) {
+        // PC: サイドバー全体を折りたたみ
+        sidebarEl.classList.toggle("collapsed");
+        toggleSidebarBtn.textContent = sidebarEl.classList.contains("collapsed") ? "＋" : "－";
+      } else {
+        // スマホ: 説明欄＋合計だけ表示/非表示
+        sidebarEl.classList.toggle("info-hidden");
+        toggleSidebarBtn.textContent = sidebarEl.classList.contains("info-hidden") ? "＋" : "－";
+      }
     });
 
     copyBtn.addEventListener("click", async function() {
@@ -1933,7 +2004,7 @@
     });
 
     function moveBaseToGrid(baseId, gx, gy) {
-      const base = bases.find(function(b) { return b.id === baseId; });
+      const base = bases.find(b => b.id === baseId);
       if (!base) return;
       const cells = createBaseCellsForAnchor(gx, gy, baseId);
       if (!cells) return;
@@ -2040,7 +2111,7 @@
         updateTotals();
 
         if (window.innerWidth <= 768) {
-          sidebarEl.classList.add("collapsed");
+          sidebarEl.classList.add("collapsed"); // 最初は小さめ
           toggleSidebarBtn.textContent = "＋";
         }
       }
