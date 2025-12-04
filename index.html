@@ -79,7 +79,14 @@
       max-height: none;
       padding: 8px 12px;
     }
-    /* スマホで情報だけ隠す用 */
+    /* PCでサイドバーを畳んだときはリスト＆合計＆説明を隠す */
+    .sidebar.collapsed #base-list-wrapper,
+    .sidebar.collapsed #sidebar-totals,
+    .sidebar.collapsed .sidebar-note {
+      display: none;
+    }
+
+    /* スマホで情報だけ隠す用（ヘッダー＋ツールバーだけ残す） */
     .sidebar.info-hidden .sidebar-note,
     .sidebar.info-hidden #sidebar-totals {
       display: none;
@@ -312,7 +319,7 @@
         top: auto;
         bottom: 0;
         border-radius: 16px 16px 0 0;
-        max-height: 50%;
+        max-height: 50vh; /* スマホでは画面の半分まで */
         font-size: 14px;
       }
       .sidebar-actions {
@@ -328,6 +335,13 @@
       }
       .note-pc { display: none; }
       .note-sp { display: block; }
+
+      /* スマホで info-hidden のときはリストも畳む */
+      .sidebar.info-hidden #base-list-wrapper,
+      .sidebar.info-hidden #sidebar-totals,
+      .sidebar.info-hidden .sidebar-note {
+        display: none;
+      }
     }
   </style>
 </head>
@@ -392,14 +406,31 @@
 
     <div class="sidebar-note">
       <div class="note-pc">
-        【PC】空きマス：ダブルクリックで基地追加 / 基地マス：ダブルクリックで編集・削除 / 左ドラッグで移動 / ホイールや＋－ボタンでズーム<br>
-        ・Copy: 同盟名・基地名・座標をコピー<br>
-        ・Exp/Imp: JSONファイルでエクスポート／インポート
+        【PC 操作】<br>
+        ・空きマス：ダブルクリックで基地追加<br>
+        ・基地マス：ダブルクリックで編集・削除、ドラッグで移動<br>
+        ・マップ移動：左ドラッグ / ホイールでズーム / ＋－ボタンでズーム<br>
+        ・Auto：選んだ同盟の「空き基地名」を、現在フォーカスしている座標周辺に自動配置<br>
+        ・陣営 / チーム：リスト＆マップをフィルター（対象外は薄表示）<br>
+        ・ソート：同盟 / 基地名 / Lv. / T / チームで並べ替え<br>
+        ・Pop：基地情報ポップ表示 ON/OFF<br>
+        ・Memo：メモポップだけ ON/OFF<br>
+        ・Clear：全基地を一括削除（確認ダイアログあり）<br>
+        ・Copy：同盟名・基地名・座標をコピー<br>
+        ・Exp/Imp：JSONでエクスポート／インポート
       </div>
       <div class="note-sp">
-        【スマホ】空きマス：同じマスを素早く2回タップで基地追加 / 基地マス：2回タップで編集・削除 / 1本指ドラッグで移動 / ＋－ボタンでズーム<br>
-        ・Copy: 同盟名・基地名・座標をコピー<br>
-        ・Exp/Imp: JSONファイルで保存／読み込み
+        【スマホ 操作】<br>
+        ・空きマス：同じマスを素早く2回タップで基地追加<br>
+        ・基地マス：2回タップで編集・削除、ドラッグで移動<br>
+        ・マップ移動：1本指ドラッグ / ＋－ボタンでズーム<br>
+        ・Auto：フォーカス中の座標周辺に、選んだ同盟の空き基地名を自動配置<br>
+        ・陣営 / チーム：対象以外はリスト＆マップ上で薄表示<br>
+        ・ソート：同盟 / 基地名 / Lv. / T / チームで並べ替え<br>
+        ・Pop：基地ポップ表示 ON/OFF / Memo：メモのみポップ表示 ON/OFF<br>
+        ・Clear：全基地を一括削除（確認あり）<br>
+        ・Copy：同盟名・基地名・座標をコピー<br>
+        ・Exp/Imp：JSONファイルで保存／読み込み
       </div>
     </div>
   </div>
@@ -529,7 +560,7 @@
     const HEX_VERT_SPACING = 1.5 * HEX_SIZE;
     const HEX_HORIZ_SPACING = Math.sqrt(3) * HEX_SIZE;
     const EDGE_THICKNESS_WORLD = HEX_SIZE * 0.8;
-    const STORAGE_KEY = "hexmap_bases_v10";
+    const STORAGE_KEY = "hexmap_bases_v11";
 
     let scale = 0.35;
     let offsetX = 0;
@@ -1037,7 +1068,10 @@
       const alliance = allianceMap[allianceKey];
       dlgName.innerHTML = "";
       if (!alliance) return;
-      const used = new Set(bases.map(b => b.name));
+      // 同盟ごとの使用済み基地名だけをチェック
+      const used = new Set(
+        bases.filter(b => b.allianceKey === allianceKey).map(b => b.name)
+      );
       alliance.members.forEach(function(name) {
         if (dialogMode === "edit" && name === currentName) {
           const opt = document.createElement("option");
@@ -1306,6 +1340,7 @@
 
         li.addEventListener("click", function() {
           selectedBaseId = b.id;
+          selectedCell = { x: b.anchor.x, y: b.anchor.y }; // ← 自動配置の基準にもなる
           focusOnBase(b);
           updateBaseListUI();
         });
@@ -1770,6 +1805,16 @@
       draw();
     }
 
+    // 六角距離（自動配置の中心からの距離）
+    function hexDistance(cellA, cellB) {
+      const a = oddrToAxial(cellA.x, cellA.y);
+      const b = oddrToAxial(cellB.x, cellB.y);
+      const dq = a.q - b.q;
+      const dr = a.r - b.r;
+      const ds = -dq - dr;
+      return Math.max(Math.abs(dq), Math.abs(dr), Math.abs(ds));
+    }
+
     // イベント類
     canvas.addEventListener("mousedown", function(e) {
       if (e.button !== 0) return;
@@ -1964,7 +2009,7 @@
         sidebarEl.classList.toggle("collapsed");
         toggleSidebarBtn.textContent = sidebarEl.classList.contains("collapsed") ? "＋" : "－";
       } else {
-        // スマホ: 説明欄＋合計だけ表示/非表示
+        // スマホ: リスト・合計・説明を表示/非表示
         sidebarEl.classList.toggle("info-hidden");
         toggleSidebarBtn.textContent = sidebarEl.classList.contains("info-hidden") ? "＋" : "－";
       }
@@ -2016,15 +2061,16 @@
       draw();
     }
 
-    // 自動配置
+    // 自動配置（フォーカス中セルの周辺を優先・同盟メンバーを上から順番に使用）
     autoBtn.addEventListener("click", function() {
       if (!ALLIANCES.length) return;
-      const allianceKey = prompt(
+      const keyInput = prompt(
         "自動配置する同盟キーを入力してください。\n例: B777 / EclA / ALLY / ENEMY",
         "B777"
       );
-      if (!allianceKey) return;
-      const alliance = allianceMap[String(allianceKey).trim()];
+      if (!keyInput) return;
+      const allianceKey = String(keyInput).trim();
+      const alliance = allianceMap[allianceKey];
       if (!alliance) {
         alert("その同盟キーは存在しません。");
         return;
@@ -2041,40 +2087,63 @@
           ? teamChoice
           : "";
 
-      const usedNames = new Set(bases.map(b => b.name));
+      // この同盟で既に使われている名前を除外し、members の上から順に使用
+      const usedNames = new Set(
+        bases.filter(b => b.allianceKey === alliance.key).map(b => b.name)
+      );
       const freeNames = alliance.members.filter(n => !usedNames.has(n));
       if (!freeNames.length) {
         alert("この同盟で新しく配置できる名前がありません。");
         return;
       }
 
-      let placed = 0;
-      outerLoop:
-      for (let i = 0; i < freeNames.length && placed < count; i++) {
-        const name = freeNames[i];
-        for (let gy = VIEW_MIN_Y; gy <= VIEW_MAX_Y; gy++) {
-          for (let gx = VIEW_MIN_X; gx <= VIEW_MAX_X; gx++) {
-            const cells = createBaseCellsForAnchor(gx, gy, null);
-            if (!cells) continue;
-            const id = Date.now().toString(36) + Math.random().toString(36).slice(2,7);
-            bases.push({
-              id: id,
-              side: alliance.side,
-              allianceKey: alliance.key,
-              name: name,
-              team: normTeam,
-              status: "参加",
-              level: 27,
-              tier: "T9",
-              memo: "",
-              cells: cells,
-              anchor: { x: gx, y: gy }
-            });
-            placed++;
-            if (placed >= count) break outerLoop;
-            break;
+      // フォーカス基準セル（selectedCell があればそれ、無ければ首都）
+      const centerCell = selectedCell
+        ? { x: selectedCell.x, y: selectedCell.y }
+        : { x: CAPITAL_CENTER_X, y: CAPITAL_CENTER_Y };
+
+      // 中心からの六角距離順に候補アンカーを作成
+      const candidates = [];
+      const MAX_RADIUS = 30; // 自動配置の探索半径
+      for (let gy = VIEW_MIN_Y; gy <= VIEW_MAX_Y; gy++) {
+        for (let gx = VIEW_MIN_X; gx <= VIEW_MAX_X; gx++) {
+          const d = hexDistance({ x: gx, y: gy }, centerCell);
+          if (d <= MAX_RADIUS) {
+            candidates.push({ x: gx, y: gy, d });
           }
         }
+      }
+      candidates.sort((a, b) => {
+        if (a.d !== b.d) return a.d - b.d;
+        if (a.y !== b.y) return a.y - b.y;
+        return a.x - b.x;
+      });
+
+      let placed = 0;
+      let nameIndex = 0;
+
+      outer:
+      for (let i = 0; i < candidates.length && placed < count && nameIndex < freeNames.length; i++) {
+        const cell = candidates[i];
+        const cells = createBaseCellsForAnchor(cell.x, cell.y, null);
+        if (!cells) continue;
+
+        const name = freeNames[nameIndex++];
+        const id = Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+        bases.push({
+          id: id,
+          side: alliance.side,
+          allianceKey: alliance.key,
+          name: name,
+          team: normTeam,
+          status: "参加",
+          level: 27,
+          tier: "T9",
+          memo: "",
+          cells: cells,
+          anchor: { x: cell.x, y: cell.y }
+        });
+        placed++;
       }
 
       if (!placed) {
@@ -2111,7 +2180,8 @@
         updateTotals();
 
         if (window.innerWidth <= 768) {
-          sidebarEl.classList.add("collapsed"); // 最初は小さめ
+          // モバイルでは最初は情報を畳んだ状態に
+          sidebarEl.classList.add("info-hidden");
           toggleSidebarBtn.textContent = "＋";
         }
       }
