@@ -2164,27 +2164,34 @@
       canvas.height = rect.height * dpr;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-      if (!resizeCanvas.initialized) {
-        resizeCanvas.initialized = true;
+if (!resizeCanvas.initialized) {
+  resizeCanvas.initialized = true;
 
-        const midWorld = gridToWorld(CAPITAL_CENTER_X, CAPITAL_CENTER_Y);
-        offsetX = rect.width / 2 - midWorld.x * scale;
-        offsetY = rect.height / 2 - midWorld.y * scale;
+  const midWorld = gridToWorld(CAPITAL_CENTER_X, CAPITAL_CENTER_Y);
+  offsetX = rect.width / 2 - midWorld.x * scale;
+  offsetY = rect.height / 2 - midWorld.y * scale;
 
-        desertPolygonWorld = desertVerticesGrid.map(v => gridToWorld(v.x, v.y));
-        blockedPolygonWorld = blockedVerticesGrid.map(v => gridToWorld(v.x, v.y));
+  desertPolygonWorld = desertVerticesGrid.map(v => gridToWorld(v.x, v.y));
+  blockedPolygonWorld = blockedVerticesGrid.map(v => gridToWorld(v.x, v.y));
 
-        initDialogSelectors();
-        loadBases();
-        updateBaseListUI();
-        updateTotals();
+  initDialogSelectors();
+  loadBases();
+  updateBaseListUI();
+  updateTotals();
 
-        if (window.innerWidth <= 768) {
-          // モバイルでは最初は情報を畳んだ状態に
-          sidebarEl.classList.add("info-hidden");
-          toggleSidebarBtn.textContent = "＋";
-        }
-      }
+  if (window.innerWidth <= 768) {
+    // ★ スマホ：最初は「説明＆合計を非表示」にしてリストを広く使う
+    sidebarEl.classList.add("info-hidden");
+    sidebarEl.classList.remove("collapsed");
+    toggleSidebarBtn.textContent = "＋";
+  } else {
+    // ★ PC：従来どおり、最初はフル表示
+    sidebarEl.classList.remove("info-hidden");
+    sidebarEl.classList.remove("collapsed");
+    toggleSidebarBtn.textContent = "－";
+  }
+}
+
       draw();
     }
 
