@@ -92,6 +92,12 @@
       display: none;
     }
 
+    /* Info ON/OFF 用：合計と説明だけ消す */
+    .sidebar.extras-hidden #sidebar-totals,
+    .sidebar.extras-hidden .sidebar-note {
+      display: none;
+    }
+
     .sidebar-header {
       display: flex;
       align-items: center;
@@ -295,6 +301,17 @@
       background: rgba(0,0,0,0.6);
     }
 
+    /* Auto配置ダイアログ */
+    #auto-dialog {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 30;
+      background: rgba(0,0,0,0.6);
+    }
+
     @media (max-width: 768px) {
       .hud {
         right: 8px;
@@ -364,6 +381,7 @@
         <button id="clear-btn">Clear</button>
         <button id="pop-toggle-btn">Pop</button>
         <button id="memo-toggle-btn">Memo</button>
+        <button id="info-toggle-btn">Info</button>
         <input type="file" id="import-file" accept="application/json" style="display:none" />
       </div>
       <!-- 下段：フィルター＆ソート -->
@@ -515,6 +533,53 @@
     </div>
   </div>
 
+  <!-- Auto 自動配置ダイアログ -->
+  <div id="auto-dialog">
+    <div style="background:#101317; padding:14px 16px; border-radius:12px; width:320px; max-width:90%; font-size:14px;">
+      <div style="font-size:15px; font-weight:600; margin-bottom:8px;">Auto 自動配置</div>
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <label>
+          <span>陣営</span><br />
+          <select id="auto-side" style="width:100%; margin-top:2px;">
+            <option value="ALLY">味方</option>
+            <option value="ENEMY">敵</option>
+          </select>
+        </label>
+        <label>
+          <span>所属同盟（リストから選択）</span><br />
+          <select id="auto-alliance" style="width:100%; margin-top:2px;"></select>
+        </label>
+        <label>
+          <span>チーム</span><br />
+          <select id="auto-team" style="width:100%; margin-top:2px;">
+            <option value="">なし</option>
+            <option value="首都">首都</option>
+            <option value="砲台">砲台</option>
+            <option value="援護">援護</option>
+          </select>
+        </label>
+        <label>
+          <span>配置数（最大 50）</span><br />
+          <input id="auto-count" type="number" min="1" max="50" value="50" style="width:100%; margin-top:2px;" />
+        </label>
+        <div style="font-size:12px; opacity:0.75;">
+          ※ 現在フォーカスしているセル（黄色枠）を中心に、近いマスから順に自動配置します。<br>
+          ※ 同盟内で未使用の基地名だけを上から順に使用します。
+        </div>
+      </div>
+      <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:12px;">
+        <button id="auto-cancel"
+          style="border:none; border-radius:999px; padding:5px 12px; font-size:14px; background:#444; color:#f5f5f5;">
+          キャンセル
+        </button>
+        <button id="auto-ok"
+          style="border:none; border-radius:999px; padding:5px 12px; font-size:14px; background:#2c7be5; color:#fff;">
+          実行
+        </button>
+      </div>
+    </div>
+  </div>
+
   <script>
     const canvas = document.getElementById("map-canvas");
     const ctx = canvas.getContext("2d");
@@ -539,6 +604,7 @@
     const sortKeySel = document.getElementById("sort-key");
     const popToggleBtn = document.getElementById("pop-toggle-btn");
     const memoToggleBtn = document.getElementById("memo-toggle-btn");
+    const infoToggleBtn = document.getElementById("info-toggle-btn");
 
     const baseDialog = document.getElementById("base-dialog");
     const dlgSide = document.getElementById("dlg-side");
@@ -553,6 +619,14 @@
     const dlgCancel = document.getElementById("dlg-cancel");
     const dlgOk = document.getElementById("dlg-ok");
     const dlgDelete = document.getElementById("dlg-delete");
+
+    const autoDialog = document.getElementById("auto-dialog");
+    const autoSide = document.getElementById("auto-side");
+    const autoAlliance = document.getElementById("auto-alliance");
+    const autoTeam = document.getElementById("auto-team");
+    const autoCount = document.getElementById("auto-count");
+    const autoCancel = document.getElementById("auto-cancel");
+    const autoOk = document.getElementById("auto-ok");
 
     const HEX_SIZE = 20;
     const GRID_MAX_X = 999;
@@ -1006,7 +1080,7 @@
       updateBaseListUI();
     });
 
-    // Pop ON/OFF
+    // Pop / Memo ON/OFF
     let showBasePopups = true;
     let showMemoPopups = true;
     popToggleBtn.textContent = "Pop ON";
@@ -1021,6 +1095,20 @@
       showMemoPopups = !showMemoPopups;
       memoToggleBtn.textContent = showMemoPopups ? "Memo ON" : "Memo OFF";
       draw();
+    });
+
+    // Info（合計＋説明）ON/OFF
+    let infoVisible = true;
+    infoToggleBtn.textContent = "Info ON";
+    infoToggleBtn.addEventListener("click", function() {
+      infoVisible = !infoVisible;
+      if (infoVisible) {
+        sidebarEl.classList.remove("extras-hidden");
+        infoToggleBtn.textContent = "Info ON";
+      } else {
+        sidebarEl.classList.add("extras-hidden");
+        infoToggleBtn.textContent = "Info OFF";
+      }
     });
 
     // ダイアログ状態
@@ -1043,10 +1131,11 @@
         opt.textContent = "T" + t;
         dlgTier.appendChild(opt);
       }
-      updateAllianceOptionsBySide("ALLY");
+      fillAllianceSelect(dlgAlliance, "ALLY");
     }
 
-    function updateAllianceOptionsBySide(side) {
+    // 共通：陣営ごとの同盟リストをセレクトに詰める
+    function fillAllianceSelect(selectEl, side) {
       const list = ALLIANCES.filter(a => a.side === side);
       list.sort((a, b) => {
         const aGen = (a.key === side);
@@ -1055,12 +1144,12 @@
         if (!aGen && bGen) return 1;
         return a.name.localeCompare(b.name, "ja");
       });
-      dlgAlliance.innerHTML = "";
+      selectEl.innerHTML = "";
       list.forEach(a => {
         const opt = document.createElement("option");
         opt.value = a.key;
         opt.textContent = a.name;
-        dlgAlliance.appendChild(opt);
+        selectEl.appendChild(opt);
       });
     }
 
@@ -1095,8 +1184,8 @@
 
     dlgSide.addEventListener("change", function() {
       const side = dlgSide.value;
-      updateAllianceOptionsBySide(side);
-      // デフォルトは味方→ALLY, 敵→ENEMY
+      fillAllianceSelect(dlgAlliance, side);
+      // デフォルトは side と同じキー（ALLY/ENEMY）を優先
       let defKey = side;
       let found = false;
       for (let i = 0; i < dlgAlliance.options.length; i++) {
@@ -1126,7 +1215,7 @@
       dlgDelete.style.display = "none";
 
       dlgSide.value = "ALLY";
-      updateAllianceOptionsBySide("ALLY");
+      fillAllianceSelect(dlgAlliance, "ALLY");
       // 所属同盟デフォルトは「味方」
       if ([...dlgAlliance.options].some(o => o.value === "ALLY")) {
         dlgAlliance.value = "ALLY";
@@ -1152,7 +1241,7 @@
       dlgDelete.style.display = "inline-block";
 
       dlgSide.value = base.side || "ALLY";
-      updateAllianceOptionsBySide(dlgSide.value);
+      fillAllianceSelect(dlgAlliance, dlgSide.value);
       dlgAlliance.value = base.allianceKey || "B777";
       updateNameOptionsForAlliance(base.allianceKey || "B777", base.name);
       dlgName.value = base.name;
@@ -1340,7 +1429,7 @@
 
         li.addEventListener("click", function() {
           selectedBaseId = b.id;
-          selectedCell = { x: b.anchor.x, y: b.anchor.y }; // ← 自動配置の基準にもなる
+          selectedCell = { x: b.anchor.x, y: b.anchor.y }; // 自動配置の基準にもなる
           focusOnBase(b);
           updateBaseListUI();
         });
@@ -1680,7 +1769,7 @@
         const baseColor = getBaseColor(b);
 
         ctx.textAlign = "center";
-        ctx.textBaseline = "top";
+        ctx.textBaseline = "middle";
 
         let cursorY = panelY + paddingY;
 
@@ -1692,8 +1781,6 @@
 
         ctx.fillStyle = "#001010";
         if (b.side === "ENEMY") ctx.fillStyle = "#330000";
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
         ctx.font = baseFontSize + "px system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif";
         ctx.fillText(alliance.name, screen.x, iconY + iconSize / 2);
 
@@ -2061,32 +2148,70 @@
       draw();
     }
 
-    // 自動配置（フォーカス中セルの周辺を優先・同盟メンバーを上から順番に使用）
-    autoBtn.addEventListener("click", function() {
-      if (!ALLIANCES.length) return;
-      const keyInput = prompt(
-        "自動配置する同盟キーを入力してください。\n例: B777 / EclA / ALLY / ENEMY",
-        "B777"
-      );
-      if (!keyInput) return;
-      const allianceKey = String(keyInput).trim();
+    // Auto 自動配置ダイアログ関連
+    function openAutoDialog() {
+      // デフォルト：味方 / チームなし / 配置数 50
+      const side = "ALLY";
+      autoSide.value = side;
+      fillAllianceSelect(autoAlliance, side);
+      if (autoAlliance.options.length) {
+        autoAlliance.value = autoAlliance.options[0].value;
+      }
+      autoTeam.value = "";
+      autoCount.value = "50";
+      autoDialog.style.display = "flex";
+    }
+
+    function closeAutoDialog() {
+      autoDialog.style.display = "none";
+    }
+
+    autoSide.addEventListener("change", function() {
+      const side = autoSide.value;
+      fillAllianceSelect(autoAlliance, side);
+      if (autoAlliance.options.length) {
+        autoAlliance.value = autoAlliance.options[0].value;
+      }
+    });
+
+    autoCancel.addEventListener("click", function() {
+      closeAutoDialog();
+    });
+
+    autoOk.addEventListener("click", function() {
+      const side = autoSide.value;
+      const allianceKey = autoAlliance.value;
       const alliance = allianceMap[allianceKey];
       if (!alliance) {
-        alert("その同盟キーは存在しません。");
+        alert("同盟の選択が不正です。");
         return;
       }
-      const countStr = prompt("何個自動配置しますか？（最大50 推奨）", "10");
-      if (!countStr) return;
-      let count = parseInt(countStr, 10);
-      if (isNaN(count) || count <= 0) return;
+
+      let count = parseInt(autoCount.value, 10);
+      if (isNaN(count) || count <= 0) {
+        alert("配置数を正しく入力してください。");
+        return;
+      }
       if (count > 50) count = 50;
 
-      const teamChoice = prompt("チームを指定してください。（首都 / 砲台 / 援護 / 空欄でなし）", "援護") || "";
+      const teamChoice = autoTeam.value || "";
       const normTeam =
         teamChoice === "首都" || teamChoice === "砲台" || teamChoice === "援護"
           ? teamChoice
           : "";
 
+      // side セレクトと同盟の side が違う場合は同盟側を優先
+      const finalAlliance = alliance;
+      runAutoPlacement(finalAlliance, count, normTeam);
+      closeAutoDialog();
+    });
+
+    autoBtn.addEventListener("click", function() {
+      openAutoDialog();
+    });
+
+    // 自動配置本体（フォーカス中セルの周辺を優先・同盟メンバーを上から順番に使用）
+    function runAutoPlacement(alliance, count, normTeam) {
       // この同盟で既に使われている名前を除外し、members の上から順に使用
       const usedNames = new Set(
         bases.filter(b => b.allianceKey === alliance.key).map(b => b.name)
@@ -2122,7 +2247,6 @@
       let placed = 0;
       let nameIndex = 0;
 
-      outer:
       for (let i = 0; i < candidates.length && placed < count && nameIndex < freeNames.length; i++) {
         const cell = candidates[i];
         const cells = createBaseCellsForAnchor(cell.x, cell.y, null);
@@ -2154,7 +2278,7 @@
         updateTotals();
         draw();
       }
-    });
+    }
 
     // 高DPI対応＆初期化
     function resizeCanvas() {
@@ -2164,34 +2288,27 @@
       canvas.height = rect.height * dpr;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-if (!resizeCanvas.initialized) {
-  resizeCanvas.initialized = true;
+      if (!resizeCanvas.initialized) {
+        resizeCanvas.initialized = true;
 
-  const midWorld = gridToWorld(CAPITAL_CENTER_X, CAPITAL_CENTER_Y);
-  offsetX = rect.width / 2 - midWorld.x * scale;
-  offsetY = rect.height / 2 - midWorld.y * scale;
+        const midWorld = gridToWorld(CAPITAL_CENTER_X, CAPITAL_CENTER_Y);
+        offsetX = rect.width / 2 - midWorld.x * scale;
+        offsetY = rect.height / 2 - midWorld.y * scale;
 
-  desertPolygonWorld = desertVerticesGrid.map(v => gridToWorld(v.x, v.y));
-  blockedPolygonWorld = blockedVerticesGrid.map(v => gridToWorld(v.x, v.y));
+        desertPolygonWorld = desertVerticesGrid.map(v => gridToWorld(v.x, v.y));
+        blockedPolygonWorld = blockedVerticesGrid.map(v => gridToWorld(v.x, v.y));
 
-  initDialogSelectors();
-  loadBases();
-  updateBaseListUI();
-  updateTotals();
+        initDialogSelectors();
+        loadBases();
+        updateBaseListUI();
+        updateTotals();
 
-  if (window.innerWidth <= 768) {
-    // ★ スマホ：最初は「説明＆合計を非表示」にしてリストを広く使う
-    sidebarEl.classList.add("info-hidden");
-    sidebarEl.classList.remove("collapsed");
-    toggleSidebarBtn.textContent = "＋";
-  } else {
-    // ★ PC：従来どおり、最初はフル表示
-    sidebarEl.classList.remove("info-hidden");
-    sidebarEl.classList.remove("collapsed");
-    toggleSidebarBtn.textContent = "－";
-  }
-}
-
+        if (window.innerWidth <= 768) {
+          // モバイルでは最初は情報を畳んだ状態に
+          sidebarEl.classList.add("info-hidden");
+          toggleSidebarBtn.textContent = "＋";
+        }
+      }
       draw();
     }
 
