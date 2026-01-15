@@ -9,7 +9,7 @@
   <!-- iPhone ホーム画面用 -->
   <link rel="apple-touch-icon" href="apple-touch-icon.png" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-moあbile-web-app-status-bar-style" content="black-translucent" />
 
   <!-- スマホのページ拡大を極力禁止 -->
   <meta
@@ -312,6 +312,17 @@
       background: rgba(0,0,0,0.6);
     }
 
+    /* Tile 追加・編集ダイアログ */
+    #tile-dialog {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 30;
+      background: rgba(0,0,0,0.6);
+    }
+
     @media (max-width: 768px) {
       .hud {
         right: 8px;
@@ -425,30 +436,32 @@
     <div class="sidebar-note">
       <div class="note-pc">
         【PC 操作】<br>
-        ・空きマス：ダブルクリックで基地追加<br>
+        ・空きマス：ダブルクリックで基地 or タイル追加（確認で選択）<br>
         ・基地マス：ダブルクリックで編集・削除、ドラッグで移動<br>
+        ・タイルマス：ダブルクリックでタイル編集・削除<br>
         ・マップ移動：左ドラッグ / ホイールでズーム / ＋－ボタンでズーム<br>
         ・Auto：選んだ同盟の「空き基地名」を、現在フォーカスしている座標周辺に自動配置<br>
         ・陣営 / チーム：リスト＆マップをフィルター（対象外は薄表示）<br>
         ・ソート：同盟 / 基地名 / Lv. / T / チームで並べ替え<br>
         ・Pop：基地情報ポップ表示 ON/OFF<br>
         ・Memo：メモポップだけ ON/OFF<br>
-        ・Clear：全基地を一括削除（確認ダイアログあり）<br>
-        ・Copy：同盟名・基地名・座標をコピー<br>
-        ・Exp/Imp：JSONでエクスポート／インポート
+        ・Clear：全基地/タイルを一括削除（確認ダイアログあり）<br>
+        ・Copy：同盟名・基地名・座標をコピー（タイルは含めない）<br>
+        ・Exp/Imp：JSONでエクスポート／インポート（タイルも含む）
       </div>
       <div class="note-sp">
         【スマホ 操作】<br>
-        ・空きマス：同じマスを素早く2回タップで基地追加<br>
+        ・空きマス：同じマスを素早く2回タップで基地 or タイル追加（確認で選択）<br>
         ・基地マス：2回タップで編集・削除、ドラッグで移動<br>
+        ・タイルマス：2回タップでタイル編集・削除<br>
         ・マップ移動：1本指ドラッグ / ＋－ボタンでズーム<br>
         ・Auto：フォーカス中の座標周辺に、選んだ同盟の空き基地名を自動配置<br>
         ・陣営 / チーム：対象以外はリスト＆マップ上で薄表示<br>
         ・ソート：同盟 / 基地名 / Lv. / T / チームで並べ替え<br>
         ・Pop：基地ポップ表示 ON/OFF / Memo：メモのみポップ表示 ON/OFF<br>
-        ・Clear：全基地を一括削除（確認あり）<br>
-        ・Copy：同盟名・基地名・座標をコピー<br>
-        ・Exp/Imp：JSONファイルで保存／読み込み
+        ・Clear：全基地/タイルを一括削除（確認あり）<br>
+        ・Copy：同盟名・基地名・座標をコピー（タイルは含めない）<br>
+        ・Exp/Imp：JSONファイルで保存／読み込み（タイルも含む）
       </div>
     </div>
   </div>
@@ -580,6 +593,38 @@
     </div>
   </div>
 
+  <!-- Tile 追加・編集ダイアログ -->
+  <div id="tile-dialog">
+    <div style="background:#101317; padding:14px 16px; border-radius:12px; width:320px; max-width:90%; font-size:14px;">
+      <div style="font-size:15px; font-weight:600; margin-bottom:8px;">タイル（資源）の追加 / 編集</div>
+      <div style="display:flex; flex-direction:column; gap:10px;">
+        <label>
+          <span>タイル名</span><br />
+          <input id="tile-name" type="text" value="資源" style="width:100%; margin-top:2px;" />
+        </label>
+        <div style="font-size:12px; opacity:0.7;" id="tile-coord-text"></div>
+        <div style="font-size:12px; opacity:0.75;">
+          ※ タイルは1マスだけ占有し、基地はそのマスに配置できません。<br>
+          ※ タイルは基地一覧には表示しません。
+        </div>
+      </div>
+      <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:12px;">
+        <button id="tile-cancel"
+          style="border:none; border-radius:999px; padding:5px 12px; font-size:14px; background:#444; color:#f5f5f5;">
+          キャンセル
+        </button>
+        <button id="tile-delete"
+          style="border:none; border-radius:999px; padding:5px 12px; font-size:14px; background:#aa3333; color:#fff; display:none;">
+          削除
+        </button>
+        <button id="tile-ok"
+          style="border:none; border-radius:999px; padding:5px 12px; font-size:14px; background:#2c7be5; color:#fff;">
+          決定
+        </button>
+      </div>
+    </div>
+  </div>
+
   <script>
     const canvas = document.getElementById("map-canvas");
     const ctx = canvas.getContext("2d");
@@ -628,13 +673,21 @@
     const autoCancel = document.getElementById("auto-cancel");
     const autoOk = document.getElementById("auto-ok");
 
+    // Tile dialog
+    const tileDialog = document.getElementById("tile-dialog");
+    const tileNameInput = document.getElementById("tile-name");
+    const tileCoordText = document.getElementById("tile-coord-text");
+    const tileCancel = document.getElementById("tile-cancel");
+    const tileDelete = document.getElementById("tile-delete");
+    const tileOk = document.getElementById("tile-ok");
+
     const HEX_SIZE = 20;
     const GRID_MAX_X = 999;
     const GRID_MAX_Y = 999;
     const HEX_VERT_SPACING = 1.5 * HEX_SIZE;
     const HEX_HORIZ_SPACING = Math.sqrt(3) * HEX_SIZE;
     const EDGE_THICKNESS_WORLD = HEX_SIZE * 0.8;
-    const STORAGE_KEY = "hexmap_bases_v11";
+    const STORAGE_KEY = "hexmap_bases_v12";
 
     let scale = 0.35;
     let offsetX = 0;
@@ -659,6 +712,7 @@
     let lastDragCell = null;
 
     const bases = [];
+    const tiles = []; // タイル（資源）: 1マスだけ占有、基地一覧には出さない
 
     const CAPITAL_CENTER_X = 500;
     const CAPITAL_CENTER_Y = 500;
@@ -689,67 +743,207 @@
       }
     }
 
-    const ALLIANCES = [
-      {
-        key: "B777",
-        name: "B777",
-        side: "ALLY",
-        color: "#ffcc00",
-        textColor: "#201500",
-        members: [
-          "SuperZeus","Ram","ponsu","すぎっしー","NEXUS21","neku-ra","Crazy楊Frog",
-          "GENLuckyTrigger","マナ","Ramen-X","やちこ","ヨホホホホ","Lamawa","Carna the God","jun33",
-          "オーシマン","るんず","WDギャン","Hans 23","アカサ","えび","ステカセ王","ケイー","Yanoyano",
-          "赤ヘル","タカちゃん","RUKA0806","ポル","yanchaaan","zerozerozero","アルアル","M731","Vikara",
-          "RUSK222","JoJo11","フランメ","Happyぼっち","keioka","みにこり","キャノン","靈魂拷問者","迷子",
-          "simon-nu","まむし","OneTop","しまんちゅ","Vivihana","PIPECUT","ロッシー","Ra-Men-Man","yusukerion",
-          "onaka","xJISOOx","れみす","ヴォーグ","mr344","浮亂苦","Nescop","irohoma","くまみーん","亞丘?斯",
-          "岡ティー","アイアイ","サムエル","もえご","QQ27","elchaaaan","Coffee jelly","ぺけたん","SEELE",
-          "mamimumemo","あこまき","ジャン","1m2","ユウディ","ウニいくら","いろはす","Tnation","バイソン",
-          "たけむー","CraZyLiOn","アジング","lupiX","nyu-ha-to","＊MISERY＊","もーー","Sakura0207","ピザコーラ",
-          "ronrico","余韻","GSX1300R"
-        ]
-      },
-      {
-        key: "EclA",
-        name: "EclA",
-        side: "ALLY",
-        color: "#66ccff",
-        textColor: "#002233",
-        members: [
-          "伏黒 恵","冨岡 義勇","RENOVATIO","reaper777","Lucien Dodsa","はるちゃん","D0NKI호테",
-          "ダンテ　G","Jabol86","DV 디뷔","온새결","c-137","SimpleDude","まるる","以蔵 -IZO-",
-          "はだて","岳仔","バトウアン","RaineForest","Nishi7","hajime77777","Nobodymeow",
-          "CORONELNEMO","조다슬남편","v끝판대장v","めいちゃん","NAT-","현대제철","Squidward jr",
-          "AINS","RAVI10","Kori77","SeoulGirl","User2abcd","makonosuke","Wolfdog Walker",
-          "Kiki777","nelipot","StoyanS","VIadimir Fido","Suokki","Jesterko","t imo",
-          "Machang Bubok","plwro","CーPON","RastaRob","CRAZY H","SoupySuperStar","Dentrival",
-          "Z‌‌","KANASAl","godjji","cubelee","DoMToDd","Craigクレグ","Aiaaahhh","fun die ?",
-          "PaladinFriend","omjmj","日出打金","duberman","アビー","White Paladin",
-          "•BadKitty18","MegaDragonite","にぃ","R0KAN","香ばしい","Sky18","Tiara333",
-          "Taro12","masa1121","simply red","Mirellle","Diegomv","・LUZ","SurvivorREM",
-          "AlexNesty","Idealize","Decade 2","Mos M Zer Lor","Jeyci","DiegoX","anhcatim",
-          "Emmanuel Wick","야찰퀸","poem0320","Crimson-Sky","Noval Yoko","Lariatte",
-          "Maelle SZ","조다슬남편"
-        ]
-      },
-      {
-        key: "ALLY",
-        name: "味方",
-        side: "ALLY",
-        color: "#99ffcc",
-        textColor: "#002010",
-        members: ALLY_MEMBERS
-      },
-      {
-        key: "ENEMY",
-        name: "敵",
-        side: "ENEMY",
-        color: "#ff6666",
-        textColor: "#2a0000",
-        members: ENEMY_MEMBERS
-      }
-    ];
+const ALLIANCES = [
+  {
+    key: "B777",
+    name: "B777",
+    side: "ALLY",
+    color: "#ffcc00",
+    textColor: "#201500",
+    members: [
+      "SuperZeus","NEXUS21","ɌAM","neku-ra","Frog Seal","simon-nu","すぎっしー","ponsu",
+      "GENLuckyTrigger","OneTop","るんず","靈魂拷問者","Hans 23","ステカセ王","オーシマン",
+      "ロッシー","Ramen-X","503DI","Sindy Lin","LakiLuky","Vikara","yanchaaan","AINS","QQ27",
+      "ヨホホホホ","Pesona Baja","Baron","サバス","zero","えび","亞丘卡斯","RastaRob","アルアル",
+      "Happyぼっち","Yanoyano","RUSK222","グリングリ","赤ヘル","もえご","CraZyLiOn","やちこ",
+      "WDギャン","D Chopper","ポル","ケイー","まむし","keioka","みにこり","アカサ","JDM Killers",
+      "yusukerion","nyu-ha-to","PIPECUT","1m2","xJISOOx","onaka","Coffee jelly","れみす","くまみーん",
+      "ヴォーグ","ユウディ","あこまき","ジャン","岡ティー","alex0814","ぺけたん","Dante ダンテ",
+      "アイアイ","mamimumemo","NEXUS21-farm2","浮亂苦","jurasinee","もーー","SEELE","サムエル","mr344",
+      "TnaTion","irohoma","2kkhpqe","Retaka","Vivihana","RUKA0806","M731","JoJo11","アジング","PUSAT",
+      "タカちゃん","NEXUS21-farm3","Ra-Men-Man","フランメ","Sakura0207","ピザコーラ"
+    ]
+  },
+
+  {
+    key: "EclA",
+    name: "EclA",
+    side: "ALLY",
+    color: "#66ccff",
+    textColor: "#002233",
+    members: [
+      "伏黒 恵","冨岡 義勇","Lucien Dodsa","Kori77","はるちゃん","RENOVATIO","reaper777","D0NKI호테",
+      "t imo","Nishi7","SimpleDude","Squidward jr","godjji","Machang Bubok","hajime77777","岳仔","NAT-",
+      "User2abcd","makonosuke","CーPON","Jesterko","Redslayer","현대제철","v끝판대장v","めいちゃん",
+      "Manorama","SoupySuperStar","c-137","CORONELNEMO","RAVI10","Z","BakA","DV 디뷔","KANASAl","Dentrival",
+      "nelipot","VIadimir Fido","糧草徵收員","truth-","Simon1118","Suokki","SurvivorREM","Nobodymeow",
+      "plwro","MegaDragonite","Razvan22","CR2025","にぃ","F RHS","以蔵 -IZO-","SeoulGirl","duberman",
+      "ReD EyEs","simply red","Wolfdog Walker","Mirellle","•HappyKitty","Tiara333","Jeyci","Diegomv",
+      "White Paladin","Jabol86","Acing D⁵","Sky18","Taro12","RedKadek","TURAN TM","masa1121","香ばしい",
+      "야찰퀸","ワル兄","にゃん五郎","tasso","ハルク","Crimson-Sky","MOCHI110","winter0101","X茶太郎X",
+      "온새결","곧망할게임","우엉이","开aitosmith","まるる","DiegoX","Emmanuel Wick","ブレラ","Fhie chenz",
+      "アジ丸","ritoru","JoeLin","Lsh93","Craigクレグ","CapnJack","Momonyan","CRAZY H","・LUZ","あぶら","ジャイアN"
+    ]
+  },
+
+  {
+    key: "TWJP",
+    name: "TWJP",
+    side: "ALLY",
+    color: "#ffd966",
+    textColor: "#4a3b00",
+    members: [
+      "每天乾一杯","躺著打電動","KADMIEL","丹霓danni","Strawberry18","FC3S13B","ice77","Zmaj Zmaj",
+      "denkochan","Lun511","cccwhatever","농구화","騎兵","Force65","pablo97","HY Chou","Stipep","cheers",
+      "Reimei","可以喔","蛋丁","クソゲー２","Frank0714","dody905","CR319","ミヤビ","琥珀色月犽","風飄搖",
+      "jurtu","暴花戶","UnderPalace","Rogon8689","El Nino 666","Benas E9","Call me Duncan","Tetorspower",
+      "XzBit12","マモン","kdkdkrkr","騎豬撞飛機","f4nnaa","ragan0808","黑皮25","３３０","miramoon",
+      "Decade 2","Antoblonde2610","M제이","qudals","迪思科","SYNAPSE","啊ken","APA yo","Lyraea","打鼓香檳",
+      "HiHiJets","末日戰警","j3aom","海贼娜美","khong-ten","miles04","小虎鯨","roy00","SUNNY12","喜仔","k82",
+      "Askium","Hot-Ice","殘楓飛櫻","ribsbbq","みにぶぅ","過關斬將","CrazyAnnabelle","shelbssss",
+      "ThailandofSmile","Black851","JLJ ATHLETIC","Lady GGG","jumberi","XIBRID","dimplekitty","mjg0352",
+      "スマイル","達磨一家","Nukesaku Sensei","WILLIAMLIM","Pippopero","Tom37","weirdZorro","水火村",
+      "abelard74","Dewei","BLADE93","User Jim6957","ダン 男前","sparrowroc","너래쳐","Noval Yoko","楊家女"
+    ]
+  },
+
+  {
+    key: "YZKR",
+    name: "YZKR",
+    side: "ALLY",
+    color: "#ffb6c1",
+    textColor: "#4a0015",
+    members: [
+      "えな ena","かなた♪","こげっち","こうる","sho27","Kuroラベル","鬼神避之","momacco","秋桜","tktktk","D-51",
+      "ks0717","Naru ZC33S","破れ傘","ぱるるん","ゆきだるま","YOU2525","はらみ","ロウザ","でん乃","Misaki3397",
+      "くろくろ","とうとう","kazchan","ゆな　zeno","倉さん","きっぺい","ケイ050","リート","かか","ポカリ",
+      "mosnid","KEI RHU","timitan12","fox9","おちゅみ","げんぞう","TAKA TAKA","ぴーぽ君","ぴょ","天使＆悪魔",
+      "男前","にーまる","nobu7265","シーザー","Kciel","タチモス","あんな","とっち","へたっぴ","Ajisai Kirei",
+      "ぺぺぺぺ","Shooota","わたあお","ココちゃん","みたらし","戰舞之歌","黒猫爺","門ちゃん","drugmorimori",
+      "徒然草","miracle moon","ジス","teruocurry","Ma-me-Shi-ba","マクロナ","まさぽん","さくらさく","シドユー",
+      "さとう","ュシッロブ","オニマリオ","Miruki","ゴンです","コウサン","rosuke","Michael3","バイソン","maru0821",
+      "たけみち","天領うどん","やたやち","ゆんける","?旭日?","Ranb","はやてつ","マリオット","rina1980","ゆずぴ",
+      "taka8","も  も  か","徐 傾人","ふりーざ","尚7766","チャゲ","吉田スパナ"
+    ]
+  },
+
+  {
+    key: "HNJR",
+    name: "HNJR",
+    side: "ALLY",
+    color: "#c3f0ff",
+    textColor: "#002b36",
+    members: [
+      "unkooo","ゅう","さぁ","やまいぶ","shuu-4","きんさん","ミーム","ももたろう","あゆしょ","むさしなお",
+      "rrrrrin","たぴまる","ゆんぞん","まるぺろ","ライオンズ","みさ","BlackThunder14","yuki☆","スモジ",
+      "＊MISERY＊","tathuya","taka3701","Bamboo User","hisachi589","tgjpgata","桜散る","マンダハン","どーしよ",
+      "Vectさん","マーボー☆","やすくん","Fuu25","ブーサン","ちゃば","ちづるん","WaterDAM","しおさんま","オリビエ",
+      "よしぞう","かぜだま","imodas","ひろぴん","tac3","マ?くん","SOSHIZI","Gattu08","long2","よっシー","ぺんちゃん",
+      "OKAPI","WindTemplar","みるみる","MaRkOoO","イルカ","kxk0310","磯野まぐろ","Sira15","ポール","umanomix",
+      "GH4N1","afroafroafro","ive6aespa4","ピンキリ","ブドウ","lafka","Asukachan","DIOカーズ","Nifeng Lee",
+      "JEDDA1","yaho1230","Ariel sanjuan","sin 121","hiroisi","Ｏyakata","Hi Ben","Jaccs","ミン","たけむー","chii0301",
+      "任天堂","Muuchan","忍者裏蛮蛮","OxxYKriY","ん～ご","a-zyu-mi","BoLeK","なゃーさん","やび","User2kki40kps",
+      "ハムカツ","User2kki2ss1","User2kki1v","Calum sands","User2kkh0t8","User2kkgvhb","majiめがね"
+    ]
+  },
+
+  {
+    key: "CrR",
+    name: "CrR",
+    side: "ALLY",
+    color: "#ff8a8a",
+    textColor: "#330000",
+    members: [
+      "smoked tongue","ゼロ","ジジ","cocomi","Reiちぇる","mokaもか","raddekV","ma-mogu","肩幅 good day","???",
+      "Kknnt00","タカナさん","か〜ず","ss nanamai","Swedish wolf","hanabi★","ちゃまま","パパン","m-chocolate",
+      "SHAH77","かぎしっぽ","クロス","Luv sic","ysyk","wanchan12","Tracy Tomato","ピノ","syunemo","Saaaaaaa",
+      "yutayuta","yasu613","ジェネラル","ぽた","へいぽー","Lord Geit","tribalwish","よよよよ","マチコ＊",
+      "chemi-sxx","KEN WORLD","MASA06","やま06","dog paradise","Katherine2008","旦那さん","Azier","KirschNacht",
+      "ルーク0537","lies darknes98","Rokin","atobi","クルーズ","Masuo honmono","冰皇","WS3","MIYAVI","Salyyy",
+      "Idealize","jisooジス","C28 SERENA","WayneWu","palumi","raonwooju","User Awe","ゼブライカ","yuuuuv",
+      "悠愛佳","Donmexxxxx","victtoy","Amxrxn65"
+    ]
+  },
+
+  {
+    key: "SYM1",
+    name: "SYM1",
+    side: "ALLY",
+    color: "#d5b3ff",
+    textColor: "#2a003d",
+    members: [
+      "ソンア","ぶっこりー","つば侍ペン","れいか","aous","ｼエロ SIERO","GAGA","フランキ一","COYG-14",
+      "Natalie926","Andy7239","Inoyasa","トムサップ","ちくワン","oppe","King Azka","ぶりとりす","CHIPORG",
+      "vlados","萌?","bekdi","powpow600","rcontra","CrazyCrows","Mcloven bruv","newb the roses","PlaYer","イイネコ",
+      "muratamo","짜장먼","kazuuu","StraightTea","るっきー","Cat Garong","ソウタン","ワンダマン","Hanaハナ",
+      "Spawn007","jimannz","wally93","daffaputrabugis","ゴルゴ31","ペラ坊","elchaaaan","Q Frince","alya adillah",
+      "成田山","sentia20","20251218","renkon","Tyaraa22","sergeiiiiiii","JC Mex","ralf18","Brent8","giants61555",
+      "lesserafim19","stivenk","雲野銃座","Luis Alvaro","Maharani12","Bumperman","ヤッァハー","moto jam","VimaVima",
+      "ikan tenggiri","白虎隊長","阿阿阿奇","anak bekdi","Edlor","VEGASs","happy everyday","incridibles °",
+      "Yod1981","velnias666","madromi02","Armeni jan","Stigmatized","PhoeNixTomm","のっすん","わいくん","サイクロン",
+      "Devanney","須賀太郎","Takdir","00000000T","いろはす","EX-FAN","User2kkh8q8","User2kkh5s5","Maxim","lukeraiz",
+      "なかやら","User2kkhd1q"
+    ]
+  },
+
+  {
+    key: "anne",
+    name: "anne",
+    side: "ALLY",
+    color: "#a0e7a0",
+    textColor: "#003300",
+    members: [
+      "杏眠","JuluP","xHarukax","ほしかなた","みち","Zi--","シャクレ","Zexal","miichan","尾張の玄","シバ神",
+      "FC ALMOND","りぃ","ひまひか","nolika","amato","tak-e","じょかい","YO5","StoneSour0622","manmos","tomyori",
+      "marcloud","millz10","サカッシ-","kenkenkeeen","ぜんたん","破壊魔定光","User2にこ","toritoto","ういんなー",
+      "lumpieeeeeee","kinking","ぺぺちん","T－Virus","norikazu","maasan","ハタ坊","bombass","MmMmnNn","鍛寅",
+      "Ham0226","バリイチ","mihi mihi","ひろすえの","こつぴー","じゅらさぶ","ハヤーノ","levorg","xu yang",
+      "ペペペロウ","ボルト","さいちゃだ","Jill2323","りお","ぽちかなた","燕市最高","Wannafly","TAROMARU","ごえん",
+      "Ichi2","ガララ","とっとみぃ","新宿精肉店","EngelHolz","ビレッジ","Hana hana","ブルーブ","Mmaverick",
+      "ぞんびい","ごり","queen ares","User2kkhケン","新里123","パワタス","大丈夫だよ","JuluP FARM 1",
+      "Ham育成中","멋지다","JuluP FARM 2","Ham増援用1","watazo"
+    ]
+  },
+
+  {
+    key: "KSKS",
+    name: "KSKS",
+    side: "ALLY",
+    color: "#9ecbff",
+    textColor: "#001a33",
+    members: [
+      "FENIXFIRE","Danger Rous2075","Madrid 15","htennek","€clips€","Ligth Yagamii","Kokoman","Jorsa","MMACL","F1J1679",
+      "Nowogrdzki","segero","JJRC1290","User2kkh2h6","NIETO1989","jk005","SolomonMouya","Telangana","saaaya","yyyyyyyyyu",
+      "Belph","User2kkhvi7","Sanggorok","Miya mimo","It ME","BIG33","Scorpion80","User2kkhq3m","MtercValEsp","60haiz",
+      "KZS Kali","godam","Frank NaJa","abrahamcito","Deire","cocoa-","DOOMTRA","Plantik","Janus Rain","User2kki28a",
+      "Mrafgnihc","Andrzej 1243","JC HOUSE96","Pepen64","Katsuro86","真島マコト","ArYsa","lbs002","bbbbbin","Hook11",
+      "JEVG123","User2kkh0n0","Kiyotaka1978","User2kkhlnk","Rockandrol","Kampan69","joeekjir","BBKEMX","User2kkh8jl",
+      "Jamking","User2kkhdtk","Marinot","RZ-W40","Adiola","User2kkher2","patjohnson","Corralejo","N1dhogg","BarlottiR",
+      "Nong 8888","IvanDem","暇なら働け","ChinoxIrvin","Luque del py","Miyagido","Surpriseb","RedBarras","red89",
+      "さっつん","Juancho13","La Funebre","Edwin hawk","User2kkh5uu","User2kkhv3i","BEARS DOWN","User2kki47d","Spyk3r",
+      "tsopaeng","YOJIMBO","Zombie barrier","User2kkhida","SIGxi","DaniixD","User2kkh0mh","User2kkhjic","User2kkhpfi",
+      "matano","Baakie13","Zo0000oommmingg","Anan kub"
+    ]
+  },
+
+  // 汎用（残しておくと便利：既存コード互換）
+  {
+    key: "ALLY",
+    name: "味方",
+    side: "ALLY",
+    color: "#99ffcc",
+    textColor: "#002010",
+    members: ALLY_MEMBERS
+  },
+  {
+    key: "ENEMY",
+    name: "敵",
+    side: "ENEMY",
+    color: "#ff6666",
+    textColor: "#2a0000",
+    members: ENEMY_MEMBERS
+  }
+];
 
     const allianceMap = {};
     ALLIANCES.forEach(a => { allianceMap[a.key] = a; });
@@ -875,6 +1069,14 @@
       return inside || dist <= EDGE_THICKNESS_WORLD;
     }
 
+    function findTileAtCell(gx, gy) {
+      for (let i = 0; i < tiles.length; i++) {
+        const t = tiles[i];
+        if (t.x === gx && t.y === gy) return t;
+      }
+      return null;
+    }
+
     function findBaseAtCell(gx, gy) {
       for (let i = 0; i < bases.length; i++) {
         const b = bases[i];
@@ -902,6 +1104,7 @@
         const c = cells[i];
         if (c.x < 0 || c.x > GRID_MAX_X || c.y < 0 || c.y > GRID_MAX_Y) return null;
         if (isBlockedCell(c.x, c.y)) return null;
+        if (findTileAtCell(c.x, c.y)) return null; // タイルがあるマスには基地を置けない
         for (let bi = 0; bi < bases.length; bi++) {
           const b = bases[bi];
           if (ignoreBaseId && b.id === ignoreBaseId) continue;
@@ -938,6 +1141,12 @@
           tier: b.tier,
           memo: b.memo || "",
           anchor: b.anchor
+        })),
+        tiles: tiles.map(t => ({
+          id: t.id,
+          x: t.x,
+          y: t.y,
+          name: t.name || "資源"
         }))
       };
     }
@@ -955,26 +1164,44 @@
       if (!raw) return;
       try {
         const data = JSON.parse(raw);
-        if (!data || !Array.isArray(data.bases)) return;
-        data.bases.forEach(rec => {
-          if (!rec.anchor) return;
-          const cells = createBaseCellsForAnchor(rec.anchor.x, rec.anchor.y, null);
-          if (!cells) return;
-          const alliance = allianceMap[rec.allianceKey] || ALLIANCES[0];
-          bases.push({
-            id: rec.id || (Date.now().toString(36) + Math.random().toString(36).slice(2,7)),
-            side: rec.side || alliance.side || "ALLY",
-            allianceKey: rec.allianceKey || "B777",
-            name: rec.name || "基地",
-            team: rec.team || "",
-            status: rec.status || "不明",
-            level: rec.level ?? null,
-            tier: rec.tier || "T1",
-            memo: rec.memo || "",
-            cells,
-            anchor: rec.anchor
+        if (!data) return;
+
+        // bases
+        if (Array.isArray(data.bases)) {
+          data.bases.forEach(rec => {
+            if (!rec.anchor) return;
+            const cells = createBaseCellsForAnchor(rec.anchor.x, rec.anchor.y, null);
+            if (!cells) return;
+            const alliance = allianceMap[rec.allianceKey] || ALLIANCES[0];
+            bases.push({
+              id: rec.id || (Date.now().toString(36) + Math.random().toString(36).slice(2,7)),
+              side: rec.side || alliance.side || "ALLY",
+              allianceKey: rec.allianceKey || "B777",
+              name: rec.name || "基地",
+              team: rec.team || "",
+              status: rec.status || "不明",
+              level: rec.level ?? null,
+              tier: rec.tier || "T1",
+              memo: rec.memo || "",
+              cells,
+              anchor: rec.anchor
+            });
           });
-        });
+        }
+
+        // tiles
+        if (Array.isArray(data.tiles)) {
+          data.tiles.forEach(rec => {
+            if (typeof rec.x !== "number" || typeof rec.y !== "number") return;
+            if (findTileAtCell(rec.x, rec.y)) return;
+            tiles.push({
+              id: rec.id || (Date.now().toString(36) + Math.random().toString(36).slice(2,7)),
+              x: rec.x,
+              y: rec.y,
+              name: rec.name || "資源"
+            });
+          });
+        }
       } catch (e) {
         console.warn("loadBases error:", e);
       }
@@ -986,7 +1213,11 @@
         return;
       }
       if (!confirm("現在の基地データを全て置き換えますか？")) return;
+
       bases.length = 0;
+      tiles.length = 0;
+
+      // bases
       data.bases.forEach(rec => {
         if (!rec.anchor) return;
         const cells = createBaseCellsForAnchor(rec.anchor.x, rec.anchor.y, null);
@@ -1006,6 +1237,26 @@
           anchor: rec.anchor
         });
       });
+
+      // tiles（任意）
+      if (Array.isArray(data.tiles)) {
+        data.tiles.forEach(rec => {
+          if (typeof rec.x !== "number" || typeof rec.y !== "number") return;
+          // 基地セル/タイルと重なるものはスキップ
+          if (findBaseAtCell(rec.x, rec.y)) return;
+          if (findTileAtCell(rec.x, rec.y)) return;
+          // 配置不可（blocked）もスキップ
+          if (isBlockedCell(rec.x, rec.y)) return;
+
+          tiles.push({
+            id: rec.id || (Date.now().toString(36) + Math.random().toString(36).slice(2,7)),
+            x: rec.x,
+            y: rec.y,
+            name: rec.name || "資源"
+          });
+        });
+      }
+
       saveBases();
       updateBaseListUI();
       updateTotals();
@@ -1111,10 +1362,15 @@
       }
     });
 
-    // ダイアログ状態
+    // 基地ダイアログ状態
     let dialogMode = "create";
     let dialogCell = null;
     let dialogEditingBase = null;
+
+    // タイルダイアログ状態
+    let tileDialogMode = "create"; // create/edit
+    let tileDialogCell = null;
+    let tileEditing = null;
 
     function initDialogSelectors() {
       dlgLevel.innerHTML = "";
@@ -1334,6 +1590,83 @@
       updateTotals();
       draw();
       closeBaseDialog();
+    });
+
+    // --- Tile dialog handlers ---
+    function openTileDialogForCreate(cell) {
+      tileDialogMode = "create";
+      tileDialogCell = cell;
+      tileEditing = null;
+      tileDelete.style.display = "none";
+      tileNameInput.value = "資源";
+      tileCoordText.textContent = "配置セル: X" + cell.x + " Y" + cell.y;
+      tileDialog.style.display = "flex";
+    }
+
+    function openTileDialogForEdit(tile) {
+      tileDialogMode = "edit";
+      tileEditing = tile;
+      tileDialogCell = { x: tile.x, y: tile.y };
+      tileDelete.style.display = "inline-block";
+      tileNameInput.value = tile.name || "資源";
+      tileCoordText.textContent = "配置セル: X" + tile.x + " Y" + tile.y;
+      tileDialog.style.display = "flex";
+    }
+
+    function closeTileDialog() {
+      tileDialog.style.display = "none";
+      tileDialogCell = null;
+      tileEditing = null;
+    }
+
+    tileCancel.addEventListener("click", closeTileDialog);
+
+    tileDelete.addEventListener("click", function() {
+      if (!tileEditing) return;
+      if (!confirm("タイル「" + (tileEditing.name || "資源") + "」を削除しますか？")) return;
+      const idx = tiles.findIndex(t => t.id === tileEditing.id);
+      if (idx !== -1) tiles.splice(idx, 1);
+      saveBases();
+      draw();
+      closeTileDialog();
+    });
+
+    tileOk.addEventListener("click", function() {
+      if (!tileDialogCell) return;
+
+      const gx = tileDialogCell.x;
+      const gy = tileDialogCell.y;
+
+      // blocked は不可
+      if (isBlockedCell(gx, gy)) {
+        alert("この位置にはタイルを配置できません。");
+        return;
+      }
+      // 基地セルと重なるのは不可
+      if (findBaseAtCell(gx, gy)) {
+        alert("この位置には基地があるため、タイルを配置できません。");
+        return;
+      }
+
+      const name = (tileNameInput.value || "資源").trim() || "資源";
+
+      if (tileDialogMode === "create") {
+        if (findTileAtCell(gx, gy)) {
+          alert("この位置には既にタイルがあります。");
+          return;
+        }
+        tiles.push({
+          id: Date.now().toString(36) + Math.random().toString(36).slice(2,7),
+          x: gx, y: gy,
+          name
+        });
+      } else if (tileDialogMode === "edit" && tileEditing) {
+        tileEditing.name = name;
+      }
+
+      saveBases();
+      draw();
+      closeTileDialog();
     });
 
     function focusOnBase(b) {
@@ -1607,6 +1940,7 @@
           }
           const inBlocked = inBlockedPolygon || inExtraBlocked;
 
+          const tileAt = findTileAtCell(gx, gy);
           const baseAt = findBaseAtCell(gx, gy);
           const match = baseAt ? isBaseMatchFilter(baseAt) : false;
 
@@ -1619,6 +1953,11 @@
             stroke = "rgba(255,80,80,0.7)";
             fill   = "rgba(255,80,80,0.22)";
             lw = 1.2;
+          } else if (tileAt) {
+            // タイル：1マス資源（基地一覧には出さない）
+            stroke = "rgba(120,200,255,0.85)";
+            fill   = "rgba(120,200,255,0.22)";
+            lw = 1.3;
           } else if (baseAt) {
             const baseColor = getBaseColor(baseAt);
             let alphaFill = 0.25;
@@ -1853,6 +2192,26 @@
       ctx.restore();
     }
 
+    function drawTileLabels() {
+      // タイルは一覧に出さないが、マップ上で名前だけ出したい場合はここで描ける（今は控えめにオフ）
+      // 必要なら true にして使ってOK
+      const SHOW_TILE_NAME = false;
+      if (!SHOW_TILE_NAME) return;
+
+      ctx.save();
+      tiles.forEach(t => {
+        const w = gridToWorld(t.x, t.y);
+        const s = worldToScreen(w.x, w.y);
+        const fontSize = Math.max(10, Math.min(18, 12 * scale * 2.0));
+        ctx.font = fontSize + "px system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif";
+        ctx.fillStyle = "rgba(180,230,255,0.95)";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(t.name || "資源", s.x, s.y);
+      });
+      ctx.restore();
+    }
+
     function draw() {
       const rect = canvas.getBoundingClientRect();
       ctx.clearRect(0, 0, rect.width, rect.height);
@@ -1863,6 +2222,7 @@
       drawRegionLabels();
       drawBaseLabels();
       drawMemoLabels();
+      drawTileLabels();
 
       zoomDisplay.textContent = Math.round(scale * 100) + "%";
       cellDisplay.textContent = selectedCell
@@ -1875,9 +2235,19 @@
       if (base) {
         selectedBaseId = base.id;
         openBaseDialogForEdit(base);
-      } else {
-        openBaseDialogForCreate(cell);
+        return;
       }
+
+      const tile = findTileAtCell(cell.x, cell.y);
+      if (tile) {
+        openTileDialogForEdit(tile);
+        return;
+      }
+
+      // 空きマス：基地 or タイルを選択（OK:基地 / Cancel:タイル）
+      const choice = confirm("基地を追加しますか？\nOK: 基地 / キャンセル: タイル");
+      if (choice) openBaseDialogForCreate(cell);
+      else openTileDialogForCreate(cell);
     }
 
     function zoomAt(mx, my, zoomDelta) {
@@ -2072,7 +2442,7 @@
             lastTapCell.x === cell.x &&
             lastTapCell.y === cell.y
           ) {
-            // ダブルタップ → 基地追加/編集（ページ拡大にはさせない）
+            // ダブルタップ → 基地/タイルの追加/編集（ページ拡大にはさせない）
             handleCellDoubleAction(cell);
             lastTapTime = 0;
             lastTapCell = null;
@@ -2123,12 +2493,13 @@
     });
 
     clearBtn.addEventListener("click", function() {
-      if (!bases.length) {
-        alert("削除する基地がありません。");
+      if (!bases.length && !tiles.length) {
+        alert("削除する基地/タイルがありません。");
         return;
       }
-      if (!confirm("全ての基地を一括削除しますか？")) return;
+      if (!confirm("全ての基地/タイルを一括削除しますか？")) return;
       bases.length = 0;
+      tiles.length = 0;
       saveBases();
       updateBaseListUI();
       updateTotals();
